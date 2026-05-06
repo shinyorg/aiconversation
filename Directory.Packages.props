@@ -8,8 +8,8 @@
         <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.5.2"/>
         <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0"/>
         <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.60"/>
-        <PackageVersion Include="Shiny.DocumentDb.Extensions.DependencyInjection" Version="5.0.0-beta-0004"/>
-        <PackageVersion Include="Shiny.DocumentDb.Sqlite" Version="5.0.0-beta-0004"/>
+        <PackageVersion Include="Shiny.DocumentDb.Extensions.DependencyInjection" Version="4.0.0"/>
+        <PackageVersion Include="Shiny.DocumentDb.Sqlite" Version="4.0.0"/>
         <PackageVersion Include="Shiny.Maui.Controls" Version="1.0.1-beta-0070"/>
         <PackageVersion Include="Shiny.Maui.Shell" Version="6.0.3"/>
         <PackageVersion Include="Shiny.Speech.Azure" Version="1.1.2"/>
@@ -20,5 +20,10 @@
         <PackageVersion Include="Microsoft.Extensions.AI" Version="10.5.2"/>
         <PackageVersion Include="Shiny.Speech" Version="1.1.2"/>
         <PackageVersion Include="Nerdbank.GitVersioning" Version="3.9.50"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageVersion Include="Imposter" Version="0.1.9"/>
+        <PackageVersion Include="TUnit" Version="1.9.55"/>
     </ItemGroup>
 </Project>

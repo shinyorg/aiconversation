@@ -15,4 +15,5 @@
   </Folder>
   <Project Path="samples/Sample/Sample.csproj" />
   <Project Path="src/Shiny.Maui.AiConversation/Shiny.Maui.AiConversation.csproj" />
+  <Project Path="tests/Shiny.Maui.AiConversation.Tests/Shiny.Maui.AiConversation.Tests.csproj" />
 </Solution>

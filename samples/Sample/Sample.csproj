@@ -11,8 +11,8 @@
 		<MauiXamlInflator>SourceGen</MauiXamlInflator>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 
-		<ApplicationTitle>AI Sample</ApplicationTitle>
-		<ApplicationId>com.shinysoft.ai.sample</ApplicationId>
+		<ApplicationTitle>AI Conversation</ApplicationTitle>
+		<ApplicationId>org.shiny.aiconversation</ApplicationId>
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 
