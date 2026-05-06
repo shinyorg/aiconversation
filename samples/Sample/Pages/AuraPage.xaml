@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<fp:ShinyContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:fp="clr-namespace:Shiny.Maui.Controls.FloatingPanel;assembly=Shiny.Maui.Controls"
+                     xmlns:pages="clr-namespace:Sample.Pages"
+                     x:Class="Sample.Pages.AuraPage"
+                     x:DataType="pages:AuraViewModel"
+                     Title="Aura"
+                     BackgroundColor="{AppThemeBinding Light=#0F0E2E, Dark=#0A0920}">
+
+    <Grid RowDefinitions="*,Auto" Padding="20">
+
+        <Grid VerticalOptions="Center" HorizontalOptions="Center"
+              WidthRequest="300" HeightRequest="300">
+
+            <!-- Ripple ring (visible during listening) -->
+            <Ellipse x:Name="RippleRing"
+                     WidthRequest="280" HeightRequest="280"
+                     HorizontalOptions="Center" VerticalOptions="Center"
+                     Stroke="{Binding AuraColor}"
+                     StrokeThickness="2"
+                     Fill="Transparent"
+                     Opacity="0"
+                     IsVisible="False" />
+
+            <!-- Outer ring -->
+            <Ellipse x:Name="OuterRing"
+                     WidthRequest="250" HeightRequest="250"
+                     HorizontalOptions="Center" VerticalOptions="Center"
+                     StrokeThickness="3"
+                     Stroke="{Binding AuraColor}"
+                     Opacity="0.3">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="Transparent" Offset="0.6" />
+                        <GradientStop Color="{Binding AuraColor}" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <!-- Inner orb -->
+            <Ellipse x:Name="InnerOrb"
+                     WidthRequest="120" HeightRequest="120"
+                     HorizontalOptions="Center" VerticalOptions="Center"
+                     Opacity="0.5">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="{Binding AuraColor}" Offset="0.0" />
+                        <GradientStop Color="Transparent" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+        </Grid>
+
+        <!-- Status label -->
+        <Label Grid.Row="1"
+               Text="{Binding StatusText}"
+               FontSize="24"
+               FontAttributes="Bold"
+               TextColor="{Binding AuraColor}"
+               HorizontalOptions="Center"
+               Margin="0,0,0,40" />
+
+    </Grid>
+
+    <fp:ShinyContentPage.Panels>
+        <!-- Floating response panel -->
+        <fp:FloatingPanel IsOpen="{Binding IsResponseVisible}"
+                          FitContent="True"
+                          HasBackdrop="False"
+                          CloseOnBackdropTap="False"
+                          PanelBackgroundColor="#E61A1A2E"
+                          HandleColor="#A29BFE"
+                          PanelCornerRadius="16">
+            <VerticalStackLayout Padding="20,8,20,20" Spacing="12">
+                <Label Text="Copilot"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#A29BFE" />
+                <Label Text="{Binding LastResponseText}"
+                       FontSize="15"
+                       TextColor="#CCFFFFFF"
+                       LineBreakMode="WordWrap"
+                       MaxLines="20" />
+            </VerticalStackLayout>
+        </fp:FloatingPanel>
+    </fp:ShinyContentPage.Panels>
+</fp:ShinyContentPage>

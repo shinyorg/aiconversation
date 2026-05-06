@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:pages="clr-namespace:Sample.Pages"
+             x:Class="Sample.Pages.LoginPage"
+             x:DataType="pages:LoginViewModel"
+             Title="Sign In"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="2*,3*"
+          BackgroundColor="{AppThemeBinding Light={StaticResource Surface}, Dark={StaticResource OffBlack}}">
+
+        <!-- Header gradient area -->
+        <BoxView Grid.Row="0">
+            <BoxView.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="{StaticResource Primary}" Offset="0.0" />
+                    <GradientStop Color="{StaticResource Accent}" Offset="1.0" />
+                </LinearGradientBrush>
+            </BoxView.Background>
+        </BoxView>
+
+        <VerticalStackLayout Grid.Row="0"
+                             Spacing="8"
+                             VerticalOptions="Center"
+                             HorizontalOptions="Center">
+            <Label Text="&#x2728;"
+                   FontSize="48"
+                   HorizontalOptions="Center" />
+            <Label Text="Shiny AI"
+                   FontSize="36"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalOptions="Center" />
+            <Label Text="Powered by GitHub Copilot"
+                   FontSize="14"
+                   TextColor="#CCFFFFFF"
+                   HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+        <!-- Sign in content -->
+        <VerticalStackLayout Grid.Row="1"
+                             Spacing="20"
+                             Padding="32,40"
+                             VerticalOptions="Start">
+
+            <!-- Before sign-in -->
+            <VerticalStackLayout Spacing="16" IsVisible="{Binding IsNotWaiting}">
+                <Label Text="Sign in with your GitHub account to start chatting with AI."
+                       FontSize="15"
+                       HorizontalTextAlignment="Center"
+                       TextColor="{StaticResource Gray500}" />
+                <Button Text="Sign in with GitHub"
+                        Command="{Binding SignInCommand}"
+                        HeightRequest="50"
+                        FontSize="16" />
+            </VerticalStackLayout>
+
+            <!-- Waiting for auth -->
+            <VerticalStackLayout Spacing="16" IsVisible="{Binding IsWaiting}">
+                <Label Text="Your code has been copied to the clipboard:"
+                       HorizontalTextAlignment="Center"
+                       FontSize="14"
+                       TextColor="{StaticResource Gray500}" />
+
+                <Border Padding="20,16"
+                        StrokeShape="RoundRectangle 12"
+                        StrokeThickness="2"
+                        Stroke="{StaticResource Primary}"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource SurfaceDark}}"
+                        HorizontalOptions="Center">
+                    <Label Text="{Binding UserCode}"
+                           FontSize="36"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                           HorizontalTextAlignment="Center"
+                           CharacterSpacing="4" />
+                </Border>
+
+                <Label Text="Paste it into the GitHub page that just opened."
+                       HorizontalTextAlignment="Center"
+                       FontSize="13"
+                       TextColor="{StaticResource Gray400}" />
+
+                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <ActivityIndicator IsRunning="True"
+                                       WidthRequest="20"
+                                       HeightRequest="20"
+                                       Color="{StaticResource Primary}" />
+                    <Label Text="Waiting for authorization..."
+                           VerticalOptions="Center"
+                           FontSize="13"
+                           TextColor="{StaticResource Gray400}" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+
+    </Grid>
+
+</ContentPage>
