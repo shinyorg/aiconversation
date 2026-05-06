@@ -7,7 +7,20 @@
              x:DataType="pages:SettingsViewModel"
              Title="Settings">
 
-    <sc:TableView>
+    <sc:TableView HeaderBackgroundColor="{AppThemeBinding Light={StaticResource Surface}, Dark={StaticResource SurfaceDark}}"
+                 HeaderTextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                 HeaderFontAttributes="Bold"
+                 HeaderFontSize="13"
+                 FooterTextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray400}}"
+                 FooterFontSize="12"
+                 CellBackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                 CellTitleColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                 CellValueTextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
+                 CellAccentColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                 SeparatorColor="{AppThemeBinding Light={StaticResource Gray100}, Dark=#2A2A3E}"
+                 SectionSeparatorColor="Transparent"
+                 SectionSeparatorHeight="12"
+                 CellBorderRadius="0">
         <sc:TableView.Root>
             <sc:TableRoot>
                 <sc:TableSection Title="Status">
