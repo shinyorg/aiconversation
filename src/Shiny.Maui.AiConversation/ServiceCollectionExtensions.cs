@@ -25,11 +25,12 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("You must configure a token provider using SetTokenProvider<TTokenProvider>() when registering the AI service.");
         
         if (options.AutoAddSpeechServices)
+        {
+            services.AddAudioPlayer();
             services.AddSpeechServices();
-        
+        }
         services.TryAddSingleton(TimeProvider.System);
-
-        services.AddSingleton<IAiService, AiService>();
+        services.TryAddSingleton<IAiService, AiService>();
         return services;
     }
 }
