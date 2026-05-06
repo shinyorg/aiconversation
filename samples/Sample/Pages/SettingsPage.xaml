@@ -15,6 +15,13 @@
                                   ValueText="{Binding CurrentStatus}" />
                 </sc:TableSection>
 
+                <sc:TableSection Title="System Prompt"
+                                 FooterText="The instruction sent to the AI with every request.">
+                    <sc:EntryCell Title="Prompt"
+                                  ValueText="{Binding SystemPromptText, Mode=TwoWay}"
+                                  Placeholder="e.g. You are a helpful assistant." />
+                </sc:TableSection>
+
                 <sc:TableSection Title="Wake Word"
                                  FooterText="Set a keyword to activate hands-free mode.">
                     <sc:EntryCell Title="Wake Word"

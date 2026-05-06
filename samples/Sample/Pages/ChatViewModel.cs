@@ -7,7 +7,7 @@ using Shiny.Maui.Controls.Chat;
 
 namespace Sample.Pages;
 
-public partial class ChatViewModel(IAiService aiService, IDialogs dialogs)
+public partial class ChatViewModel(IAiConversationService aiService, IDialogs dialogs)
     : ObservableObject, IPageLifecycleAware
 {
     const int PageSize = 25;

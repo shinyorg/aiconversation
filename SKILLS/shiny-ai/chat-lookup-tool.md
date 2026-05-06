@@ -22,7 +22,7 @@ Results are limited to 50 messages and formatted as timestamped lines.
 The tool is registered automatically when `addAiLookupTool: true` is passed to `SetMessageStore()`:
 
 ```csharp
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     opts.SetChatClientProvider<MyChatClientProvider>();
     opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true); // default is true
@@ -33,7 +33,7 @@ This registers:
 1. `ChatLookupAITool` as a singleton
 2. An `AITool` singleton (resolved via `ChatLookupAITool.AsTool()`)
 
-The `AiService` implementation collects all registered `AITool` instances via `IEnumerable<AITool>` and passes them to the chat client's `ChatOptions.Tools`.
+The `AiConversationService` implementation collects all registered `AITool` instances via `IEnumerable<AITool>` and passes them to the chat client's `ChatOptions.Tools`.
 
 ## Disabling
 

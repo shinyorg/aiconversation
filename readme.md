@@ -1,6 +1,6 @@
 # Shiny.Maui.AiConversation
 
-A centralized AI service library for .NET MAUI apps that orchestrates chat, speech recognition, wake word detection, text-to-speech, and persistent message history into a single `IAiService` interface.
+A centralized AI service library for .NET MAUI apps that orchestrates chat, speech recognition, wake word detection, text-to-speech, and persistent message history into a single `IAiConversationService` interface.
 
 [![NuGet](https://img.shields.io/nuget/v/Shiny.Maui.AiConversation.svg)](https://www.nuget.org/packages/Shiny.Maui.AiConversation/)
 
@@ -33,7 +33,7 @@ builder
     .UseMauiApp<App>()
     .ConfigureFonts(fonts => { ... });
 
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     // Required — your IChatClientProvider implementation
     opts.SetChatClientProvider<MyChatClientProvider>();
@@ -45,13 +45,14 @@ builder.Services.AddShinyAi(opts =>
 var app = builder.Build();
 
 // Configure after build
-var ai = app.Services.GetRequiredService<IAiService>();
+var ai = app.Services.GetRequiredService<IAiConversationService>();
 ai.SystemPrompts.Add("You are a helpful assistant.");
-ai.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
-ai.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
-ai.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
-ai.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
-ai.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
+ai.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
+ai.OkSound = "ok.mp3";
+ai.ThinkSound = "think.mp3";
+ai.RespondingSound = "responding.mp3";
+ai.ErrorSound = "error.mp3";
+ai.CancelSound = "cancel.mp3";
 
 return app;
 ```
@@ -109,7 +110,7 @@ public class MyMessageStore : IMessageStore
 ### 4. Use the service
 
 ```csharp
-public class ChatViewModel(IAiService aiService) : ObservableObject
+public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 {
     public async Task SendMessage(string text)
     {
@@ -130,7 +131,7 @@ public class ChatViewModel(IAiService aiService) : ObservableObject
 
 ## API Overview
 
-### IAiService
+### IAiConversationService
 
 | Member | Description |
 |--------|-------------|
@@ -164,7 +165,7 @@ When `SetMessageStore<T>(addAiLookupTool: true)` is used, the library registers 
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                   IAiService                     │
+│                   IAiConversationService                     │
 │  (orchestrates chat, speech, sounds, history)    │
 ├──────────┬──────────────┬───────────────────────┤
 │          │              │                       │

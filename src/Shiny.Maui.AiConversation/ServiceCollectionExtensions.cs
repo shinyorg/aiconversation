@@ -1,14 +1,16 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Shiny.Maui.AiConversation;
 using Shiny.Maui.AiConversation.Infrastructure;
 
-namespace Shiny.Maui.AiConversation;
+namespace Shiny;
 
 /// <summary>
 /// Extension methods for registering the Shiny AI service with dependency injection.
 /// </summary>
-public static class ServiceCollectionExtensions
+public static class AiConversationServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the Shiny AI service and its dependencies. A chat client provider must be configured
@@ -17,7 +19,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to register into.</param>
     /// <param name="configure">Callback to configure the AI service options.</param>
     /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddShinyAi(this IServiceCollection services, Action<AiServiceOptions> configure)
+    public static IServiceCollection AddShinyAiConversation(this IServiceCollection services, Action<AiServiceOptions> configure)
     {
         var options = new AiServiceOptions(services);
         configure.Invoke(options);
@@ -30,7 +32,7 @@ public static class ServiceCollectionExtensions
             services.AddSpeechServices();
         }
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IAiService, AiService>();
+        services.TryAddSingleton<IAiConversationService, AiConversationService>();
         return services;
     }
 }
@@ -57,7 +59,7 @@ public class AiServiceOptions(IServiceCollection services)
     /// </summary>
     /// <typeparam name="TTokenProvider">The concrete provider type.</typeparam>
     /// <returns>This options instance for chaining.</returns>
-    public AiServiceOptions SetChatClientProvider<TTokenProvider>()
+    public AiServiceOptions SetChatClientProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TTokenProvider>()
         where TTokenProvider : class, IChatClientProvider
     {
         services.TryAddSingleton<IChatClientProvider, TTokenProvider>();
@@ -71,7 +73,7 @@ public class AiServiceOptions(IServiceCollection services)
     /// <typeparam name="TMessageStore">The concrete message store type.</typeparam>
     /// <param name="addAiLookupTool">When true, registers an AI tool for searching chat history.</param>
     /// <returns>This options instance for chaining.</returns>
-    public AiServiceOptions SetMessageStore<TMessageStore>(bool addAiLookupTool = true)
+    public AiServiceOptions SetMessageStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TMessageStore>(bool addAiLookupTool = true)
         where TMessageStore : class, IMessageStore
     {
         services.AddSingleton<IMessageStore, TMessageStore>();

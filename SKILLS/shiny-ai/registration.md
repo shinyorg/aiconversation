@@ -2,14 +2,14 @@
 
 ## DI Registration
 
-Register the AI service in `MauiProgram.cs` using `AddShinyAi()`:
+Register the AI service in `MauiProgram.cs` using `AddShinyAiConversation()`:
 
 ```csharp
 using Shiny.Maui.AiConversation;
 
 var builder = MauiApp.CreateBuilder();
 
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     // Required: set the chat client provider
     opts.SetChatClientProvider<MyChatClientProvider>();
@@ -24,10 +24,10 @@ var app = builder.Build();
 
 ## Post-Build Configuration
 
-Sound effects and system prompts must be set **after** `builder.Build()` on the resolved IAiService instance:
+Sound effects and system prompts must be set **after** `builder.Build()` on the resolved IAiConversationService instance:
 
 ```csharp
-var aiService = app.Services.GetRequiredService<IAiService>();
+var aiService = app.Services.GetRequiredService<IAiConversationService>();
 
 // Add system prompts
 aiService.SystemPrompts.Add(
@@ -37,12 +37,13 @@ aiService.SystemPrompts.Add(
     """
 );
 
-// Configure sounds — stream factories (files must exist in Resources/Raw/)
-aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
-aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
-aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
-aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
-aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
+// Sound resolver + sound file names (files must exist in Resources/Raw/)
+aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
+aiService.OkSound = "ok.mp3";
+aiService.CancelSound = "cancel.mp3";
+aiService.ErrorSound = "error.mp3";
+aiService.ThinkSound = "think.mp3";
+aiService.RespondingSound = "responding.mp3";
 ```
 
 ## AiServiceOptions
@@ -61,8 +62,8 @@ aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding
 
 ## Auto-Registered Dependencies
 
-`AddShinyAi()` automatically registers (via TryAddSingleton):
+`AddShinyAiConversation()` automatically registers (via TryAddSingleton):
 - `TimeProvider.System`
 - Speech services via `AddSpeechServices()` (when `AutoAddSpeechServices` is true, the default) — includes ISpeechToTextService, ITextToSpeechService, and IAudioPlayer from Shiny.Speech
 
-These can be overridden by registering your own implementations before calling `AddShinyAi()`, or by setting `opts.AutoAddSpeechServices = false`.
+These can be overridden by registering your own implementations before calling `AddShinyAiConversation()`, or by setting `opts.AutoAddSpeechServices = false`.

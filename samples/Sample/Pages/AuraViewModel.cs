@@ -5,7 +5,7 @@ using Shiny.Maui.AiConversation;
 
 namespace Sample.Pages;
 
-public partial class AuraViewModel(IAiService aiService)
+public partial class AuraViewModel(IAiConversationService aiService)
     : ObservableObject, IPageLifecycleAware
 {
     public AiState CurrentState => aiService.Status;

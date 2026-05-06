@@ -47,7 +47,7 @@ public static class MauiProgram
         // });
         
         builder.Services.AddSingleton<GitHubCopilotChatClientProvider>(sp => (GitHubCopilotChatClientProvider)sp.GetRequiredService<IChatClientProvider>());
-        builder.Services.AddShinyAi(opts =>
+        builder.Services.AddShinyAiConversation(opts =>
         {
             opts.SetMessageStore<DocumentDbMessageStore>(true);
             opts.SetChatClientProvider<GitHubCopilotChatClientProvider>();
@@ -58,7 +58,7 @@ public static class MauiProgram
 #endif
         var app = builder.Build();
 
-        var aiService = app.Services.GetRequiredService<IAiService>();
+        var aiService = app.Services.GetRequiredService<IAiConversationService>();
         aiService.SystemPrompts.Add(
             """
             You are a helpful assistant that provides information about the Maui AI sample app. You can answer questions 
@@ -66,11 +66,12 @@ public static class MauiProgram
             a question, it's okay to say you don't know.
             """
         );
-        aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
-        aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
-        aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
-        aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
-        aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
+        aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
+        aiService.OkSound = "ok.mp3";
+        aiService.CancelSound = "cancel.mp3";
+        aiService.ErrorSound = "error.mp3";
+        aiService.ThinkSound = "think.mp3";
+        aiService.RespondingSound = "responding.mp3";
 
         return app;
     }

@@ -22,7 +22,7 @@ public interface IMessageStore
 ## Methods
 
 ### Store
-Persists a single chat message. Called automatically by AiService after each user message and AI response.
+Persists a single chat message. Called automatically by AiConversationService after each user message and AI response.
 
 ### Clear
 Removes messages from the store:
@@ -100,7 +100,7 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
 ## Registration
 
 ```csharp
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     opts.SetChatClientProvider<MyChatClientProvider>();
     opts.SetMessageStore<DocumentDbMessageStore>();

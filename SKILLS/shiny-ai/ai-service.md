@@ -1,6 +1,6 @@
-# IAiService API Reference
+# IAiConversationService API Reference
 
-## Interface: `IAiService`
+## Interface: `IAiConversationService`
 
 **Namespace**: `Shiny.Maui.AiConversation`
 
@@ -32,11 +32,12 @@ Raised when the AI produces a response. The `AiResponse` record contains:
 | `Acknowledgement` | `AiAcknowledgement` | Controls response delivery mode (get/set) |
 | `SystemPrompts` | `IList<string>` | System prompts prepended to every chat request |
 | `CurrentChatMessages` | `IReadOnlyList<ChatMessage>` | In-memory chat messages for current session |
-| `OkSound` | `Func<Task<Stream>>?` | Stream factory for sound played on successful interaction (AudioBlip mode) |
-| `CancelSound` | `Func<Task<Stream>>?` | Stream factory for sound played on cancellation (AudioBlip mode) |
-| `ErrorSound` | `Func<Task<Stream>>?` | Stream factory for sound played on error (AudioBlip mode) |
-| `ThinkSound` | `Func<Task<Stream>>?` | Stream factory for sound played when AI begins processing (AudioBlip mode) |
-| `RespondingSound` | `Func<Task<Stream>>?` | Stream factory for sound played when AI begins streaming response (AudioBlip mode) |
+| `SoundResolver` | `Func<string, Task<Stream>>?` | Callback that resolves a sound file name to a playable stream |
+| `OkSound` | `string?` | Sound file name played on successful interaction (AudioBlip mode) |
+| `CancelSound` | `string?` | Sound file name played on cancellation (AudioBlip mode) |
+| `ErrorSound` | `string?` | Sound file name played on error (AudioBlip mode) |
+| `ThinkSound` | `string?` | Sound file name played when AI begins processing (AudioBlip mode) |
+| `RespondingSound` | `string?` | Sound file name played when AI begins streaming response (AudioBlip mode) |
 
 ## Methods
 

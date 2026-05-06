@@ -1,5 +1,5 @@
 ---
-name: shiny-ai
+name: shiny-aiconversation
 description: Generate code for Shiny.Maui.AiConversation - a centralized AI service library for .NET MAUI apps with chat client abstraction, wake word detection, speech-to-text/text-to-speech, acknowledgement modes (None/AudioBlip/LessWordy/Full), persistent message store, optional AI chat history lookup tool, and configurable sound effects
 auto_invoke: true
 triggers:
@@ -29,8 +29,11 @@ triggers:
   - talk to ai
   - ai response
   - ai state
-  - addshinyai
-  - add shiny ai
+  - addshinyaiconversation
+  - add shiny ai conversation
+  - ai conversation service
+  - aiconversationservice
+  - iaiconversationservice
   - ai service options
   - aiserviceoptions
 references:
@@ -52,7 +55,7 @@ You are an expert in the Shiny.Maui.AiConversation library, a centralized AI ser
 **Infrastructure Namespace**: `Shiny.Maui.AiConversation.Infrastructure` (internal implementations)
 
 The library provides:
-- **IAiService**: Central orchestrator for AI interactions — manages state (Idle/Listening/Thinking/Responding), wake word detection, speech-to-text capture, chat client communication, text-to-speech response, acknowledgement modes, sound effects, and persistent chat history
+- **IAiConversationService**: Central orchestrator for AI interactions — manages state (Idle/Listening/Thinking/Responding), wake word detection, speech-to-text capture, chat client communication, text-to-speech response, acknowledgement modes, sound effects, and persistent chat history
 - **IChatClientProvider**: Abstraction for obtaining an `IChatClient` (from Microsoft.Extensions.AI) — implementations handle authentication, token management, and client construction
 - **IMessageStore**: Abstraction for persisting and querying chat message history — implementations provide storage (SQLite, file system, cloud, etc.)
 - **ChatLookupAITool**: Optional AI tool that allows the AI to search past conversations via IMessageStore, registered as an `AITool` for Microsoft.Extensions.AI tool calling
@@ -68,14 +71,14 @@ The library provides:
 
 Invoke this skill when the user wants to:
 - Set up an AI chat service in a .NET MAUI app
-- Register and configure IAiService with dependency injection
+- Register and configure IAiConversationService with dependency injection
 - Implement IChatClientProvider for a specific AI backend (OpenAI, GitHub Copilot, Azure, etc.)
 - Implement IMessageStore for persistent chat history
 - Add wake word detection to an app
 - Configure acknowledgement modes (None, AudioBlip, LessWordy, Full)
 - Set up sound effects for AI state transitions
 - Add the optional ChatLookupAITool for AI-driven history search
-- Build a chat UI that integrates with IAiService
+- Build a chat UI that integrates with IAiConversationService
 - Handle AI state changes (Idle, Listening, Thinking, Responding)
 - Use TalkTo or ListenAndTalk for AI interactions
 
@@ -83,12 +86,12 @@ Invoke this skill when the user wants to:
 
 ### 1. Registration (MauiProgram.cs)
 
-Always register with `AddShinyAi()`:
+Always register with `AddShinyAiConversation()`:
 
 ```csharp
 using Shiny.Maui.AiConversation;
 
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     opts.SetChatClientProvider<MyChatClientProvider>();
     opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true); // optional
@@ -97,23 +100,24 @@ builder.Services.AddShinyAi(opts =>
 
 - `SetChatClientProvider<T>()` is **required** — throws if omitted
 - `SetMessageStore<T>()` is **optional** — enables persistent history and optionally registers the ChatLookupAITool
-- Sound effects and system prompts are set on IAiService **after** `builder.Build()`
+- Sound effects and system prompts are set on IAiConversationService **after** `builder.Build()`
 
 ### 2. Post-Build Configuration
 
 ```csharp
 var app = builder.Build();
-var aiService = app.Services.GetRequiredService<IAiService>();
+var aiService = app.Services.GetRequiredService<IAiConversationService>();
 
 // System prompts
 aiService.SystemPrompts.Add("You are a helpful assistant...");
 
-// Sound effects — stream factories (files in Resources/Raw/)
-aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
-aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
-aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
-aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
-aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
+// Sound resolver + sound file names (files in Resources/Raw/)
+aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
+aiService.OkSound = "ok.mp3";
+aiService.CancelSound = "cancel.mp3";
+aiService.ErrorSound = "error.mp3";
+aiService.ThinkSound = "think.mp3";
+aiService.RespondingSound = "responding.mp3";
 ```
 
 ### 3. Implementing IChatClientProvider
@@ -148,7 +152,7 @@ public class MyMessageStore : IMessageStore
 }
 ```
 
-### 5. Using IAiService
+### 5. Using IAiConversationService
 
 ```csharp
 // Send a text message
@@ -199,7 +203,7 @@ aiService.AiResponded += (response) =>
 
 ## Best Practices
 
-1. **Set sounds externally** — Never set default sound values on AiService directly; configure them in MauiProgram.cs after Build()
+1. **Set sounds externally** — Never set default sound values on AiConversationService directly; configure them in MauiProgram.cs after Build()
 2. **Handle auth on-demand** — IChatClientProvider should handle authentication lazily, not force login at startup
 3. **Use TwoWay binding** for Acknowledgement in settings UIs
 4. **Subscribe/unsubscribe** to StateChanged and AiResponded in page lifecycle (OnAppearing/OnDisappearing)

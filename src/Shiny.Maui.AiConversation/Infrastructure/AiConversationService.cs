@@ -4,8 +4,7 @@ using Shiny.Speech;
 
 namespace Shiny.Maui.AiConversation.Infrastructure;
 
-// TODO: add a tool to look up previous chats?
-public class AiService(
+public class AiConversationService(
     IChatClientProvider chatClientProvider,
     ISpeechToTextService speechToText,
     ITextToSpeechService textToSpeech,
@@ -13,7 +12,7 @@ public class AiService(
     TimeProvider timeProvider,
     IEnumerable<AITool> tools,
     IMessageStore? messageStore = null // optional
-) : IAiService
+) : IAiConversationService
 {
     readonly SemaphoreSlim semaphore = new(1, 1);
     CancellationTokenSource? wakeWordCts;
@@ -22,11 +21,12 @@ public class AiService(
     public event Action<AiResponse>? AiResponded;
     public bool IsWakeWordEnabled { get; private set; }
     public string? WakeWord { get; private set; }
-    public Func<Task<Stream>>? OkSound { get; set; }
-    public Func<Task<Stream>>? CancelSound { get; set; }
-    public Func<Task<Stream>>? ErrorSound { get; set; }
-    public Func<Task<Stream>>? ThinkSound { get; set; }
-    public Func<Task<Stream>>? RespondingSound { get; set; }
+    public Func<string, Task<Stream>>? SoundResolver { get; set; }
+    public string? OkSound { get; set; }
+    public string? CancelSound { get; set; }
+    public string? ErrorSound { get; set; }
+    public string? ThinkSound { get; set; }
+    public string? RespondingSound { get; set; }
     public AiState Status { get; private set; }
     public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
     public IList<string> SystemPrompts { get; set; } = [];
@@ -245,14 +245,14 @@ public class AiService(
         this.StateChanged?.Invoke();
     }
 
-    async Task PlaySoundIf(Func<Task<Stream>>? soundFactory)
+    async Task PlaySoundIf(string? soundName)
     {
-        if (soundFactory == null)
+        if (String.IsNullOrEmpty(soundName) || this.SoundResolver == null)
             return;
 
         if (this.Acknowledgement == AiAcknowledgement.AudioBlip)
         {
-            var stream = await soundFactory();
+            var stream = await this.SoundResolver(soundName);
             await audioPlayer.PlayAsync(stream);
         }
     }

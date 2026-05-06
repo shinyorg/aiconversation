@@ -5,7 +5,7 @@ using Shiny.Maui.AiConversation;
 
 namespace Sample.Pages;
 
-public partial class SettingsViewModel(IAiService aiService, IDialogs dialogs)
+public partial class SettingsViewModel(IAiConversationService aiService, IDialogs dialogs)
     : ObservableObject, IPageLifecycleAware
 {
     public string[] AcknowledgementOptions => Enum.GetNames<AiAcknowledgement>();
@@ -20,6 +20,18 @@ public partial class SettingsViewModel(IAiService aiService, IDialogs dialogs)
                 aiService.Acknowledgement = parsed;
                 OnPropertyChanged();
             }
+        }
+    }
+
+    public string SystemPromptText
+    {
+        get => aiService.SystemPrompts.FirstOrDefault() ?? "";
+        set
+        {
+            aiService.SystemPrompts.Clear();
+            if (!String.IsNullOrWhiteSpace(value))
+                aiService.SystemPrompts.Add(value);
+            OnPropertyChanged();
         }
     }
 

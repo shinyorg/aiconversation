@@ -77,7 +77,7 @@ public class MyChatClientProvider(INavigator navigator) : IChatClientProvider
 ## Registration
 
 ```csharp
-builder.Services.AddShinyAi(opts =>
+builder.Services.AddShinyAiConversation(opts =>
 {
     opts.SetChatClientProvider<MyChatClientProvider>();
 });
