@@ -13,7 +13,6 @@ builder.Services.AddSingleton<GitHubCopilotChatClientProvider>(sp =>
 builder.Services.AddSingleton<InMemoryMessageStore>();
 builder.Services.AddShinyAiConversation(opts =>
 {
-    opts.AutoAddSpeechServices = false;
     opts.SetChatClientProvider<GitHubCopilotChatClientProvider>();
     opts.SetMessageStore<InMemoryMessageStore>();
 });
