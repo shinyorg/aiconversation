@@ -14,11 +14,6 @@ namespace Shiny;
 public class AiConversationOptions(IServiceCollection services)
 {
     /// <summary>
-    /// Returns true if a chat client provider has been registered.
-    /// </summary>
-    public bool IsChatClientProvided => services.Any(x => x.ServiceType == typeof(IChatClientProvider));
-    
-    /// <summary>
     /// Will call for Shiny Speech Service registration if true (default)
     /// </summary>
     public bool AutoAddSpeechServices { get; set; } = true;

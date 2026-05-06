@@ -33,11 +33,11 @@ builder
     .UseMauiApp<App>()
     .ConfigureFonts(fonts => { ... });
 
+// Register an IChatClient in DI (from any Microsoft.Extensions.AI-compatible provider)
+builder.Services.AddChatClient(new OpenAIClient("your-api-key").GetChatClient("gpt-4o").AsIChatClient());
+
 builder.Services.AddShinyAiConversation(opts =>
 {
-    // Required — your IChatClientProvider implementation
-    opts.SetChatClientProvider<MyChatClientProvider>();
-
     // Optional — enable persistent history + AI lookup tool
     opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true);
 });
@@ -57,9 +57,15 @@ ai.CancelSound = "cancel.mp3";
 return app;
 ```
 
-### 2. Implement `IChatClientProvider`
+### 2. Chat Client Setup
 
-This is how the library obtains a chat client. You control authentication, token management, and which AI backend to use.
+By default, the library resolves `IChatClient` from DI. Simply register your chat client with the container:
+
+```csharp
+builder.Services.AddChatClient(new OpenAIClient("your-api-key").GetChatClient("gpt-4o").AsIChatClient());
+```
+
+For advanced scenarios (on-demand authentication, token refresh, etc.), implement `IChatClientProvider`:
 
 ```csharp
 using Microsoft.Extensions.AI;
@@ -69,11 +75,16 @@ public class MyChatClientProvider : IChatClientProvider
 {
     public async Task<IChatClient> GetChatClient(CancellationToken cancelToken = default)
     {
-        // Build and return any IChatClient — OpenAI, Azure, GitHub Copilot, etc.
-        var client = new OpenAIClient("your-api-key");
-        return client.GetChatClient("gpt-4o").AsIChatClient();
+        // Handle auth, token refresh, etc.
+        return BuildChatClient();
     }
 }
+
+// Register it:
+builder.Services.AddShinyAiConversation(opts =>
+{
+    opts.SetChatClientProvider<MyChatClientProvider>();
+});
 ```
 
 ### 3. Implement `IMessageStore` (optional)
@@ -170,7 +181,8 @@ When `SetMessageStore<T>(addAiLookupTool: true)` is used, the library registers 
 ├──────────┬──────────────┬───────────────────────┤
 │          │              │                       │
 │  IChatClientProvider    │    IMessageStore       │
-│  (auth + AI backend)   │    (persistence)       │
+│  (default: resolves    │    (persistence)       │
+│   IChatClient from DI) │                        │
 │          │              │         │              │
 │    IChatClient     ISpeechToText  │   ChatLookupAITool
 │  (M.E.AI)          ITextToSpeech │   (optional AITool)
