@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Sample.Pages;
 using Sample.Services;
@@ -34,6 +35,7 @@ public static class MauiProgram
         {
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "sample_ai.db");
             opts.DatabaseProvider = new SqliteDatabaseProvider($"Data Source={dbPath}");
+            opts.JsonSerializerOptions = AppJsonContext.Default.Options;
             opts.UseReflectionFallback = false;
         });
         
@@ -76,3 +78,7 @@ public static class MauiProgram
         return app;
     }
 }
+
+
+[JsonSerializable(typeof(AiChatMessage))]
+public partial class AppJsonContext : JsonSerializerContext;
