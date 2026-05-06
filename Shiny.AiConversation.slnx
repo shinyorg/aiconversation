@@ -1,20 +1,21 @@
 <Solution>
-  <Configurations>
-    <Platform Name="Any CPU" />
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
-  <Folder Name="/Solution/">
-    <File Path=".github/workflows/build.yml" />
-    <File Path=".github/workflows/sync-skills.yml" />
-    <File Path="Directory.Build.props" />
-    <File Path="Directory.Packages.props" />
-    <File Path="readme.md" />
-    <File Path="SKILLS/shiny-ai/SKILL.md" />
-    <File Path="version.json" />
-  </Folder>
-  <Project Path="samples/Sample/Sample.csproj" />
-  <Project Path="samples/Sample.Blazor/Sample.Blazor.csproj" />
-  <Project Path="src/Shiny.AiConversation/Shiny.AiConversation.csproj" />
-  <Project Path="tests/Shiny.AiConversation.Tests/Shiny.AiConversation.Tests.csproj" />
+    <Configurations>
+        <Platform Name="Any CPU" />
+        <Platform Name="x64" />
+        <Platform Name="x86" />
+    </Configurations>
+    <Folder Name="/Solution/">
+        <File Path=".github/workflows/build.yml" />
+        <File Path=".github/workflows/sync-skills.yml" />
+        <File Path="build.slnf" />
+        <File Path="Directory.Build.props" />
+        <File Path="Directory.Packages.props" />
+        <File Path="readme.md" />
+        <File Path="SKILLS/shiny-aiconversation/SKILL.md" />
+        <File Path="version.json" />
+    </Folder>
+    <Project Path="samples/Sample/Sample.csproj" />
+    <Project Path="samples/Sample.Blazor/Sample.Blazor.csproj" />
+    <Project Path="src/Shiny.AiConversation/Shiny.AiConversation.csproj" />
+    <Project Path="tests/Shiny.AiConversation.Tests/Shiny.AiConversation.Tests.csproj" />
 </Solution>

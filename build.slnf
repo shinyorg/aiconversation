@@ -1,0 +1,9 @@
+﻿{
+    "solution": {
+        "path": "Shiny.AiConversation.slnx",
+        "projects": [
+            "src\\Shiny.AiConversation\\Shiny.AiConversation.csproj",
+            "tests\\Shiny.AiConversation.Tests\\Shiny.AiConversation.Tests.csproj"
+        ]
+    }
+}
