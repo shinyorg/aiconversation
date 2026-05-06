@@ -4,12 +4,11 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using OpenAI;
-using Shiny;
 using Shiny.AiConversation;
 
-namespace Sample.Services;
+namespace Sample.Blazor.Services;
 
-public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClientProvider
+public class GitHubCopilotChatClientProvider : IChatClientProvider
 {
     const string ClientId = "Iv1.b507a08c87ecfe98";
     const string Scope = "read:user";
@@ -18,7 +17,6 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
     const string CopilotTokenUrl = "https://api.github.com/copilot_internal/v2/token";
     const string CopilotBaseUrl = "https://api.githubcopilot.com";
     const string DefaultModel = "gpt-4o";
-    const string GitHubTokenKey = "github_oauth_token";
 
     static readonly HttpClient Http = new()
     {
@@ -29,9 +27,15 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
         }
     };
 
+    string? githubToken;
     string? cachedCopilotToken;
     DateTimeOffset copilotTokenExpiry = DateTimeOffset.MinValue;
 
+    public event Action? AuthenticationRequired;
+    public event Action? AuthenticationCompleted;
+    public bool IsAuthenticated => this.githubToken != null;
+
+    TaskCompletionSource? authTcs;
 
     public async Task<DeviceCodeResponse> StartDeviceFlow(CancellationToken ct = default)
     {
@@ -61,7 +65,7 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
 
         if (!String.IsNullOrEmpty(result?.AccessToken))
         {
-            await SecureStorage.Default.SetAsync(GitHubTokenKey, result.AccessToken);
+            this.githubToken = result.AccessToken;
             return true;
         }
 
@@ -70,8 +74,7 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
 
     public async Task<IChatClient> GetChatClient(CancellationToken cancelToken = default)
     {
-        var githubToken = await SecureStorage.Default.GetAsync(GitHubTokenKey);
-        if (githubToken == null)
+        if (this.githubToken == null)
             await this.RequestAuthentication(cancelToken);
 
         string copilotToken;
@@ -101,25 +104,24 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
 
     public void SignOut()
     {
-        SecureStorage.Default.Remove(GitHubTokenKey);
+        this.githubToken = null;
         this.cachedCopilotToken = null;
         this.copilotTokenExpiry = DateTimeOffset.MinValue;
     }
 
     async Task RequestAuthentication(CancellationToken ct)
     {
-        var tcs = new TaskCompletionSource();
-        using var reg = ct.Register(() => tcs.TrySetCanceled());
+        this.authTcs = new TaskCompletionSource();
+        using var reg = ct.Register(() => this.authTcs.TrySetCanceled());
 
-        await MainThread.InvokeOnMainThreadAsync(async () =>
-        {
-            await navigator.NavigateTo<Pages.LoginViewModel>(vm =>
-            {
-                vm.AuthenticationCompleted = tcs;
-            });
-        });
+        this.AuthenticationRequired?.Invoke();
+        await this.authTcs.Task;
+    }
 
-        await tcs.Task;
+    public void CompleteAuthentication()
+    {
+        this.authTcs?.TrySetResult();
+        this.AuthenticationCompleted?.Invoke();
     }
 
     async Task<string> GetCopilotToken(CancellationToken ct)
@@ -127,11 +129,11 @@ public class GitHubCopilotChatClientProvider(INavigator navigator) : IChatClient
         if (this.cachedCopilotToken != null && DateTimeOffset.UtcNow.AddSeconds(60) < this.copilotTokenExpiry)
             return this.cachedCopilotToken;
 
-        var githubToken = await SecureStorage.Default.GetAsync(GitHubTokenKey)
-            ?? throw new InvalidOperationException("Not authenticated. Please sign in with GitHub first.");
+        if (this.githubToken == null)
+            throw new InvalidOperationException("Not authenticated. Please sign in with GitHub first.");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, CopilotTokenUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("token", githubToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("token", this.githubToken);
 
         var response = await Http.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();

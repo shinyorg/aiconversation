@@ -2,8 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Shiny.Maui.AiConversation;
-using Shiny.Maui.AiConversation.Infrastructure;
+using Shiny.AiConversation;
+using Shiny.AiConversation.Infrastructure;
 
 namespace Shiny;
 

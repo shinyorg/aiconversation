@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../../src/Shiny.Maui.AiConversation/Shiny.Maui.AiConversation.csproj"/>
+        <ProjectReference Include="../../src/Shiny.AiConversation/Shiny.AiConversation.csproj"/>
     </ItemGroup>
 
 </Project>

@@ -1,0 +1,132 @@
+@page "/settings"
+@inject IAiConversationService AiService
+@inject Sample.Blazor.Services.GitHubCopilotChatClientProvider Copilot
+@implements IDisposable
+
+<PageTitle>Settings</PageTitle>
+
+<div class="settings-container">
+    <div class="settings-section">
+        <h3>Status</h3>
+        <div class="settings-card">
+            <div class="settings-row">
+                <span class="settings-label">AI Status</span>
+                <span class="settings-value">@AiService.Status</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>System Prompt</h3>
+        <p class="settings-footer">The instruction sent to the AI with every request.</p>
+        <div class="settings-card">
+            <div class="settings-row">
+                <label class="settings-label" for="system-prompt">Prompt</label>
+                <input id="system-prompt"
+                       type="text"
+                       value="@systemPrompt"
+                       @onchange="OnSystemPromptChanged"
+                       placeholder="e.g. You are a helpful assistant." />
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Response Mode</h3>
+        <p class="settings-footer">Controls how the AI acknowledges responses.</p>
+        <div class="settings-card">
+            <div class="settings-row">
+                <label class="settings-label" for="acknowledgement">Acknowledgement</label>
+                <select id="acknowledgement" value="@selectedAcknowledgement" @onchange="OnAcknowledgementChanged">
+                    @foreach (var option in Enum.GetNames<AiAcknowledgement>())
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Danger Zone</h3>
+        <div class="settings-card">
+            <button class="btn-danger" @onclick="ClearHistory">Clear All Chat History</button>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Account</h3>
+        <div class="settings-card">
+            @if (Copilot.IsAuthenticated)
+            {
+                <button class="btn-danger" @onclick="SignOut">Sign Out</button>
+            }
+            else
+            {
+                <span class="settings-value">Not signed in</span>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    string systemPrompt = "";
+    string selectedAcknowledgement = "";
+    string? statusMessage;
+
+    protected override void OnInitialized()
+    {
+        AiService.StateChanged += OnStateChanged;
+        systemPrompt = AiService.SystemPrompts.FirstOrDefault() ?? "";
+        selectedAcknowledgement = AiService.Acknowledgement.ToString();
+    }
+
+    void OnSystemPromptChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        systemPrompt = value;
+
+        AiService.SystemPrompts.Clear();
+        if (!String.IsNullOrWhiteSpace(value))
+            AiService.SystemPrompts.Add(value);
+    }
+
+    void OnAcknowledgementChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        if (Enum.TryParse<AiAcknowledgement>(value, out var parsed))
+        {
+            AiService.Acknowledgement = parsed;
+            selectedAcknowledgement = value;
+        }
+    }
+
+    async Task ClearHistory()
+    {
+        try
+        {
+            await AiService.ClearChatHistory();
+            statusMessage = "Chat history cleared.";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    void SignOut()
+    {
+        Copilot.SignOut();
+        StateHasChanged();
+    }
+
+    void OnStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AiService.StateChanged -= OnStateChanged;
+    }
+}

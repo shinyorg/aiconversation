@@ -1,9 +1,9 @@
 using Imposter.Abstractions;
 using Microsoft.Extensions.AI;
-using Shiny.Maui.AiConversation.Infrastructure;
+using Shiny.AiConversation.Infrastructure;
 using Shiny.Speech;
 
-namespace Shiny.Maui.AiConversation.Tests;
+namespace Shiny.AiConversation.Tests;
 
 public class AiConversationServiceTests
 {

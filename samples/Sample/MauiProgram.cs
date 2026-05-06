@@ -5,7 +5,7 @@ using Sample.Services;
 using Shiny;
 using Shiny.DocumentDb;
 using Shiny.DocumentDb.Sqlite;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 namespace Sample;
 

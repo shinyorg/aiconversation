@@ -1,8 +1,8 @@
-# Shiny.Maui.AiConversation
+# Shiny.AiConversation
 
 A centralized AI service library for .NET MAUI apps that orchestrates chat, speech recognition, wake word detection, text-to-speech, and persistent message history into a single `IAiConversationService` interface.
 
-[![NuGet](https://img.shields.io/nuget/v/Shiny.Maui.AiConversation.svg)](https://www.nuget.org/packages/Shiny.Maui.AiConversation/)
+[![NuGet](https://img.shields.io/nuget/v/Shiny.AiConversation.svg)](https://www.nuget.org/packages/Shiny.AiConversation/)
 
 ## Features
 
@@ -18,7 +18,7 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 ## Installation
 
 ```bash
-dotnet add package Shiny.Maui.AiConversation
+dotnet add package Shiny.AiConversation
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ dotnet add package Shiny.Maui.AiConversation
 ### 1. Register the service
 
 ```csharp
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 var builder = MauiApp.CreateBuilder();
 builder
@@ -63,7 +63,7 @@ This is how the library obtains a chat client. You control authentication, token
 
 ```csharp
 using Microsoft.Extensions.AI;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 public class MyChatClientProvider : IChatClientProvider
 {
@@ -81,7 +81,7 @@ public class MyChatClientProvider : IChatClientProvider
 Provide persistent storage for chat history. Without this, `GetChatHistory` and `ClearChatHistory` will throw.
 
 ```csharp
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 public class MyMessageStore : IMessageStore
 {

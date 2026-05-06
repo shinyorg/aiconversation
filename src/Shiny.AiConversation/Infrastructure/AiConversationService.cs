@@ -2,7 +2,7 @@ using System.Text;
 using Microsoft.Extensions.AI;
 using Shiny.Speech;
 
-namespace Shiny.Maui.AiConversation.Infrastructure;
+namespace Shiny.AiConversation.Infrastructure;
 
 public class AiConversationService(
     IChatClientProvider chatClientProvider,

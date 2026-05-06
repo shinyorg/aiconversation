@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 namespace Sample.Pages;
 

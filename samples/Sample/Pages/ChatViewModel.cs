@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 using Shiny.Maui.Controls.Chat;
 
 namespace Sample.Pages;
@@ -12,6 +12,7 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
 {
     const int PageSize = 25;
     bool hasMoreHistory = true;
+    bool isLoadingHistory;
 
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
@@ -61,17 +62,28 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
 
     async Task LoadHistory()
     {
+        if (this.isLoadingHistory)
+            return;
+
+        this.isLoadingHistory = true;
         try
         {
-            var history = await aiService.GetChatHistory(limit: PageSize);
+            var history = await aiService.GetChatHistory(limit: PageSize).ConfigureAwait(false);
             this.hasMoreHistory = history.Count >= PageSize;
 
-            foreach (var msg in history)
-                this.Messages.Add(ToChatMessage(msg));
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                foreach (var msg in history)
+                    this.Messages.Add(ToChatMessage(msg));
+            });
         }
         catch (Exception ex)
         {
-            await dialogs.Alert("Error", ex.Message);
+            MainThread.BeginInvokeOnMainThread(async () => await dialogs.Alert("Error", ex.Message));
+        }
+        finally
+        {
+            this.isLoadingHistory = false;
         }
     }
 

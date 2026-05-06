@@ -1,0 +1,107 @@
+@page "/login"
+@layout Layout.LoginLayout
+@inject Sample.Blazor.Services.GitHubCopilotChatClientProvider Copilot
+@inject NavigationManager Navigation
+
+<PageTitle>Sign In</PageTitle>
+
+<div class="login-container">
+    <div class="login-header">
+        <div class="login-sparkle">&#x2728;</div>
+        <h1>Shiny AI</h1>
+        <p>Powered by GitHub Copilot</p>
+    </div>
+
+    <div class="login-content">
+        @if (errorMessage != null)
+        {
+            <div class="login-error">@errorMessage</div>
+        }
+
+        @if (!isWaiting)
+        {
+            <p class="login-subtitle">Sign in with your GitHub account to start chatting with AI.</p>
+            <button class="btn-primary" @onclick="SignIn" disabled="@isSigningIn">
+                @(isSigningIn ? "Starting..." : "Sign in with GitHub")
+            </button>
+        }
+        else
+        {
+            <p class="login-subtitle">Your code has been copied — paste it in the GitHub page:</p>
+
+            <div class="device-code-box">
+                <span class="device-code">@userCode</span>
+            </div>
+
+            <p class="login-hint">A new browser tab should have opened. Paste the code there.</p>
+
+            <div class="login-waiting">
+                <div class="spinner"></div>
+                <span>Waiting for authorization...</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    bool isWaiting;
+    bool isSigningIn;
+    string? userCode;
+    string? errorMessage;
+    CancellationTokenSource? pollCts;
+
+    async Task SignIn()
+    {
+        isSigningIn = true;
+        errorMessage = null;
+
+        try
+        {
+            var deviceCode = await Copilot.StartDeviceFlow();
+            userCode = deviceCode.UserCode;
+            isWaiting = true;
+            isSigningIn = false;
+
+            await CopyToClipboard(deviceCode.UserCode);
+            Navigation.NavigateTo(deviceCode.VerificationUri, forceLoad: true);
+
+            pollCts = new CancellationTokenSource(TimeSpan.FromSeconds(deviceCode.ExpiresIn));
+            var ct = pollCts.Token;
+            var interval = TimeSpan.FromSeconds(deviceCode.Interval);
+
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(interval, ct);
+
+                if (await Copilot.PollForToken(deviceCode, ct))
+                {
+                    Copilot.CompleteAuthentication();
+                    Navigation.NavigateTo("/");
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "Authorization timed out. Please try again.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isWaiting = false;
+            isSigningIn = false;
+            pollCts?.Dispose();
+            pollCts = null;
+        }
+    }
+
+    async Task CopyToClipboard(string text)
+    {
+        // Best-effort clipboard copy; requires JS interop in Blazor
+        // In a real app you'd inject IJSRuntime and call navigator.clipboard.writeText
+        await Task.CompletedTask;
+    }
+}

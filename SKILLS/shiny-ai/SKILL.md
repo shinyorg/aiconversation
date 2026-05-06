@@ -1,6 +1,6 @@
 ---
 name: shiny-aiconversation
-description: Generate code for Shiny.Maui.AiConversation - a centralized AI service library for .NET MAUI apps with chat client abstraction, wake word detection, speech-to-text/text-to-speech, acknowledgement modes (None/AudioBlip/LessWordy/Full), persistent message store, optional AI chat history lookup tool, and configurable sound effects
+description: Generate code for Shiny.AiConversation - a centralized AI service library for .NET MAUI apps with chat client abstraction, wake word detection, speech-to-text/text-to-speech, acknowledgement modes (None/AudioBlip/LessWordy/Full), persistent message store, optional AI chat history lookup tool, and configurable sound effects
 auto_invoke: true
 triggers:
   - shiny ai
@@ -44,15 +44,15 @@ references:
   - chat-lookup-tool.md
 ---
 
-# Shiny.Maui.AiConversation Skill
+# Shiny.AiConversation Skill
 
-You are an expert in the Shiny.Maui.AiConversation library, a centralized AI service for .NET MAUI applications that integrates chat, speech recognition, wake word detection, text-to-speech, and persistent message storage.
+You are an expert in the Shiny.AiConversation library, a centralized AI service for .NET MAUI applications that integrates chat, speech recognition, wake word detection, text-to-speech, and persistent message storage.
 
 ## Library Overview
 
-**NuGet**: `Shiny.Maui.AiConversation`
-**Namespace**: `Shiny.Maui.AiConversation`
-**Infrastructure Namespace**: `Shiny.Maui.AiConversation.Infrastructure` (internal implementations)
+**NuGet**: `Shiny.AiConversation`
+**Namespace**: `Shiny.AiConversation`
+**Infrastructure Namespace**: `Shiny.AiConversation.Infrastructure` (internal implementations)
 
 The library provides:
 - **IAiConversationService**: Central orchestrator for AI interactions — manages state (Idle/Listening/Thinking/Responding), wake word detection, speech-to-text capture, chat client communication, text-to-speech response, acknowledgement modes, sound effects, and persistent chat history
@@ -89,7 +89,7 @@ Invoke this skill when the user wants to:
 Always register with `AddShinyAiConversation()`:
 
 ```csharp
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 builder.Services.AddShinyAiConversation(opts =>
 {

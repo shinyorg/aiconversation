@@ -14,6 +14,7 @@
     <File Path="version.json" />
   </Folder>
   <Project Path="samples/Sample/Sample.csproj" />
-  <Project Path="src/Shiny.Maui.AiConversation/Shiny.Maui.AiConversation.csproj" />
-  <Project Path="tests/Shiny.Maui.AiConversation.Tests/Shiny.Maui.AiConversation.Tests.csproj" />
+  <Project Path="samples/Sample.Blazor/Sample.Blazor.csproj" />
+  <Project Path="src/Shiny.AiConversation/Shiny.AiConversation.csproj" />
+  <Project Path="tests/Shiny.AiConversation.Tests/Shiny.AiConversation.Tests.csproj" />
 </Solution>

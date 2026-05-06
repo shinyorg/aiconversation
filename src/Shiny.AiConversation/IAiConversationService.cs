@@ -1,6 +1,6 @@
 using Microsoft.Extensions.AI;
 
-namespace Shiny.Maui.AiConversation;
+namespace Shiny.AiConversation;
 
 /// <summary>
 /// A centralized AI service that manages chat interactions, speech recognition,

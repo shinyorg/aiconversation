@@ -1,6 +1,6 @@
 using Imposter.Abstractions;
 using Microsoft.Extensions.AI;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 using Shiny.Speech;
 
 [assembly: GenerateImposter(typeof(IChatClientProvider))]

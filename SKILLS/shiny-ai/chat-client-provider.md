@@ -2,7 +2,7 @@
 
 ## Interface
 
-**Namespace**: `Shiny.Maui.AiConversation`
+**Namespace**: `Shiny.AiConversation`
 
 ```csharp
 public interface IChatClientProvider
@@ -22,7 +22,7 @@ Provides an `IChatClient` (from Microsoft.Extensions.AI) to the AI service. Impl
 
 ```csharp
 using Microsoft.Extensions.AI;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 public class MyChatClientProvider(INavigator navigator) : IChatClientProvider
 {

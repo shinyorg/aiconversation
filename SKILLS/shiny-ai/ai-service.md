@@ -2,7 +2,7 @@
 
 ## Interface: `IAiConversationService`
 
-**Namespace**: `Shiny.Maui.AiConversation`
+**Namespace**: `Shiny.AiConversation`
 
 The central orchestrator for all AI interactions in a .NET MAUI app.
 

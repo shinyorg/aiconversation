@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
 
-namespace Shiny.Maui.AiConversation.Infrastructure;
+namespace Shiny.AiConversation.Infrastructure;
 
 public class ChatLookupAITool(IMessageStore messageStore)
 {

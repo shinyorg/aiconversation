@@ -5,7 +5,7 @@
 Register the AI service in `MauiProgram.cs` using `AddShinyAiConversation()`:
 
 ```csharp
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 var builder = MauiApp.CreateBuilder();
 

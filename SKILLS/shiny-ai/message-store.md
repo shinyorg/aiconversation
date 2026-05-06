@@ -2,7 +2,7 @@
 
 ## Interface
 
-**Namespace**: `Shiny.Maui.AiConversation`
+**Namespace**: `Shiny.AiConversation`
 
 ```csharp
 public interface IMessageStore
@@ -42,7 +42,7 @@ Using Shiny.DocumentDb:
 
 ```csharp
 using Shiny.DocumentDb;
-using Shiny.Maui.AiConversation;
+using Shiny.AiConversation;
 
 public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
 {

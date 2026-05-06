@@ -1,4 +1,4 @@
-namespace Shiny.Maui.AiConversation;
+namespace Shiny.AiConversation;
 
 /// <summary>
 /// Persists and queries chat message history. Implementations provide the underlying
