@@ -1,4 +1,4 @@
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 using Shiny.Maui.Controls.FloatingPanel;
 
 namespace Sample.Pages;

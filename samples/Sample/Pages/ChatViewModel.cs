@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 using Shiny.Maui.Controls.Chat;
 
 namespace Sample.Pages;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.AI;
 
-namespace Shiny.Maui.AI;
+namespace Shiny.Maui.AiConversation;
 
 /// <summary>
 /// A centralized AI service that manages chat interactions, speech recognition,
@@ -38,34 +38,34 @@ public interface IAiService
     void StopWakeWord();
 
     /// <summary>
-    /// Sound file (app package resource) played when the service acknowledges a successful interaction.
+    /// Factory that provides an audio stream played when the service acknowledges a successful interaction.
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/>.
     /// </summary>
-    string? OkSound { get; set; }
+    Func<Task<Stream>>? OkSound { get; set; }
 
     /// <summary>
-    /// Sound file (app package resource) played when an operation is cancelled.
+    /// Factory that provides an audio stream played when an operation is cancelled.
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/>.
     /// </summary>
-    string? CancelSound { get; set; }
+    Func<Task<Stream>>? CancelSound { get; set; }
 
     /// <summary>
-    /// Sound file (app package resource) played when an error occurs.
+    /// Factory that provides an audio stream played when an error occurs.
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/>.
     /// </summary>
-    string? ErrorSound { get; set; }
+    Func<Task<Stream>>? ErrorSound { get; set; }
 
     /// <summary>
-    /// Sound file (app package resource) played when the AI begins processing a request.
+    /// Factory that provides an audio stream played when the AI begins processing a request.
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/>.
     /// </summary>
-    string? ThinkSound { get; set; }
+    Func<Task<Stream>>? ThinkSound { get; set; }
 
     /// <summary>
-    /// Sound file (app package resource) played when the AI begins streaming its response.
+    /// Factory that provides an audio stream played when the AI begins streaming its response.
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/>.
     /// </summary>
-    string? RespondingSound { get; set; }
+    Func<Task<Stream>>? RespondingSound { get; set; }
     
     /// <summary>
     /// The current processing state of the service.

@@ -1,6 +1,6 @@
 ---
 name: shiny-ai
-description: Generate code for Shiny.Maui.AI - a centralized AI service library for .NET MAUI apps with chat client abstraction, wake word detection, speech-to-text/text-to-speech, acknowledgement modes (None/AudioBlip/LessWordy/Full), persistent message store, optional AI chat history lookup tool, and configurable sound effects
+description: Generate code for Shiny.Maui.AiConversation - a centralized AI service library for .NET MAUI apps with chat client abstraction, wake word detection, speech-to-text/text-to-speech, acknowledgement modes (None/AudioBlip/LessWordy/Full), persistent message store, optional AI chat history lookup tool, and configurable sound effects
 auto_invoke: true
 triggers:
   - shiny ai
@@ -41,15 +41,15 @@ references:
   - chat-lookup-tool.md
 ---
 
-# Shiny.Maui.AI Skill
+# Shiny.Maui.AiConversation Skill
 
-You are an expert in the Shiny.Maui.AI library, a centralized AI service for .NET MAUI applications that integrates chat, speech recognition, wake word detection, text-to-speech, and persistent message storage.
+You are an expert in the Shiny.Maui.AiConversation library, a centralized AI service for .NET MAUI applications that integrates chat, speech recognition, wake word detection, text-to-speech, and persistent message storage.
 
 ## Library Overview
 
-**NuGet**: `Shiny.Maui.AI`
-**Namespace**: `Shiny.Maui.AI`
-**Infrastructure Namespace**: `Shiny.Maui.AI.Infrastructure` (internal implementations)
+**NuGet**: `Shiny.Maui.AiConversation`
+**Namespace**: `Shiny.Maui.AiConversation`
+**Infrastructure Namespace**: `Shiny.Maui.AiConversation.Infrastructure` (internal implementations)
 
 The library provides:
 - **IAiService**: Central orchestrator for AI interactions — manages state (Idle/Listening/Thinking/Responding), wake word detection, speech-to-text capture, chat client communication, text-to-speech response, acknowledgement modes, sound effects, and persistent chat history
@@ -62,8 +62,7 @@ The library provides:
 ## Dependencies
 
 - `Microsoft.Extensions.AI` — IChatClient, ChatMessage, ChatRole, AITool, ChatOptions
-- `Plugin.Maui.Audio` — IAudioManager for playing sound effects
-- `Shiny.Speech` — ISpeechToTextService, ITextToSpeechService for voice interactions
+- `Shiny.Speech` — ISpeechToTextService, ITextToSpeechService, IAudioPlayer for voice interactions and sound effects
 
 ## When to Use This Skill
 
@@ -87,7 +86,7 @@ Invoke this skill when the user wants to:
 Always register with `AddShinyAi()`:
 
 ```csharp
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 builder.Services.AddShinyAi(opts =>
 {
@@ -109,12 +108,12 @@ var aiService = app.Services.GetRequiredService<IAiService>();
 // System prompts
 aiService.SystemPrompts.Add("You are a helpful assistant...");
 
-// Sound effects (app package resources in Resources/Raw/)
-aiService.OkSound = "ok.mp3";
-aiService.CancelSound = "cancel.mp3";
-aiService.ErrorSound = "error.mp3";
-aiService.ThinkSound = "think.mp3";
-aiService.RespondingSound = "responding.mp3";
+// Sound effects — stream factories (files in Resources/Raw/)
+aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
+aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
+aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
+aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
+aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
 ```
 
 ### 3. Implementing IChatClientProvider

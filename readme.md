@@ -1,8 +1,8 @@
-# Shiny.Maui.AI
+# Shiny.Maui.AiConversation
 
 A centralized AI service library for .NET MAUI apps that orchestrates chat, speech recognition, wake word detection, text-to-speech, and persistent message history into a single `IAiService` interface.
 
-[![NuGet](https://img.shields.io/nuget/v/Shiny.Maui.AI.svg)](https://www.nuget.org/packages/Shiny.Maui.AI/)
+[![NuGet](https://img.shields.io/nuget/v/Shiny.Maui.AiConversation.svg)](https://www.nuget.org/packages/Shiny.Maui.AiConversation/)
 
 ## Features
 
@@ -13,12 +13,12 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **Persistent Chat History** — Pluggable `IMessageStore` for storing and querying past conversations
 - **AI History Lookup Tool** — Optional `AITool` that lets the AI search past conversations on its own
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
-- **Sound Effects** — Configurable sounds for each state transition
+- **Sound Effects** — Configurable sound stream factories for each state transition
 
 ## Installation
 
 ```bash
-dotnet add package Shiny.Maui.AI
+dotnet add package Shiny.Maui.AiConversation
 ```
 
 ## Quick Start
@@ -26,7 +26,7 @@ dotnet add package Shiny.Maui.AI
 ### 1. Register the service
 
 ```csharp
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 var builder = MauiApp.CreateBuilder();
 builder
@@ -47,11 +47,11 @@ var app = builder.Build();
 // Configure after build
 var ai = app.Services.GetRequiredService<IAiService>();
 ai.SystemPrompts.Add("You are a helpful assistant.");
-ai.OkSound = "ok.mp3";
-ai.ThinkSound = "think.mp3";
-ai.RespondingSound = "responding.mp3";
-ai.ErrorSound = "error.mp3";
-ai.CancelSound = "cancel.mp3";
+ai.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
+ai.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
+ai.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
+ai.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
+ai.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
 
 return app;
 ```
@@ -62,7 +62,7 @@ This is how the library obtains a chat client. You control authentication, token
 
 ```csharp
 using Microsoft.Extensions.AI;
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 public class MyChatClientProvider : IChatClientProvider
 {
@@ -80,7 +80,7 @@ public class MyChatClientProvider : IChatClientProvider
 Provide persistent storage for chat history. Without this, `GetChatHistory` and `ClearChatHistory` will throw.
 
 ```csharp
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 public class MyMessageStore : IMessageStore
 {
@@ -175,8 +175,8 @@ When `SetMessageStore<T>(addAiLookupTool: true)` is used, the library registers 
 │  (M.E.AI)          ITextToSpeech │   (optional AITool)
 │                    (Shiny.Speech) │              │
 │                         │         │              │
-│                    IAudioManager  │              │
-│                   (Plugin.Maui.Audio)            │
+│                    IAudioPlayer   │              │
+│                   (Shiny.Speech)  │              │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -185,8 +185,7 @@ When `SetMessageStore<T>(addAiLookupTool: true)` is used, the library registers 
 | Package | Purpose |
 |---------|---------|
 | [Microsoft.Extensions.AI](https://www.nuget.org/packages/Microsoft.Extensions.AI) | IChatClient abstraction |
-| [Shiny.Speech](https://www.nuget.org/packages/Shiny.Speech) | Speech-to-text and text-to-speech |
-| [Plugin.Maui.Audio](https://www.nuget.org/packages/Plugin.Maui.Audio) | Sound effect playback |
+| [Shiny.Speech](https://www.nuget.org/packages/Shiny.Speech) | Speech-to-text, text-to-speech, and audio playback |
 
 ## License
 

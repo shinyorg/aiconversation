@@ -45,7 +45,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\src\Shiny.Maui.AI\Shiny.Maui.AI.csproj" />
+		<ProjectReference Include="..\..\src\Shiny.Maui.AiConversation\Shiny.Maui.AiConversation.csproj" />
 	</ItemGroup>
 
 </Project>

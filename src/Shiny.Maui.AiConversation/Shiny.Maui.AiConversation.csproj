@@ -6,7 +6,6 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.AI"/>
-        <PackageReference Include="Plugin.Maui.Audio"/>
         <PackageReference Include="Shiny.Speech"/>
     </ItemGroup>
 

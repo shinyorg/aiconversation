@@ -1,4 +1,4 @@
-namespace Shiny.Maui.AI;
+namespace Shiny.Maui.AiConversation;
 
 /// <summary>
 /// Represents a single chat message persisted in the message store.

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using OpenAI;
 using Shiny;
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 namespace Sample.Services;
 

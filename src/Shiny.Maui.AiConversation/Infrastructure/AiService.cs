@@ -1,16 +1,15 @@
 using System.Text;
 using Microsoft.Extensions.AI;
-using Plugin.Maui.Audio;
 using Shiny.Speech;
 
-namespace Shiny.Maui.AI.Infrastructure;
+namespace Shiny.Maui.AiConversation.Infrastructure;
 
 // TODO: add a tool to look up previous chats?
 public class AiService(
     IChatClientProvider chatClientProvider,
     ISpeechToTextService speechToText,
     ITextToSpeechService textToSpeech,
-    IAudioManager audioManager,
+    IAudioPlayer audioPlayer,
     TimeProvider timeProvider,
     IEnumerable<AITool> tools,
     IMessageStore? messageStore = null // optional
@@ -23,11 +22,11 @@ public class AiService(
     public event Action<AiResponse>? AiResponded;
     public bool IsWakeWordEnabled { get; private set; }
     public string? WakeWord { get; private set; }
-    public string? OkSound { get; set; }
-    public string? CancelSound { get; set; }
-    public string? ErrorSound { get; set; }
-    public string? ThinkSound { get; set; }
-    public string? RespondingSound { get; set; }
+    public Func<Task<Stream>>? OkSound { get; set; }
+    public Func<Task<Stream>>? CancelSound { get; set; }
+    public Func<Task<Stream>>? ErrorSound { get; set; }
+    public Func<Task<Stream>>? ThinkSound { get; set; }
+    public Func<Task<Stream>>? RespondingSound { get; set; }
     public AiState Status { get; private set; }
     public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
     public IList<string> SystemPrompts { get; set; } = [];
@@ -168,10 +167,13 @@ public class AiService(
             this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, fullResponseString));
             this.AiResponded?.Invoke(new AiResponse(fullResponseString, now, wasReadAloud));
 
-            await messageStore.Store(
-                new AiChatMessage(Guid.NewGuid().ToString(), fullResponseString, now, ChatMessageDirection.AI),
-                cancellationToken
-            );
+            if (messageStore != null)
+            {
+                await messageStore.Store(
+                    new AiChatMessage(Guid.NewGuid().ToString(), fullResponseString, now, ChatMessageDirection.AI),
+                    cancellationToken
+                );
+            }
 
             await this.PlaySoundIf(this.OkSound);
         }
@@ -243,15 +245,15 @@ public class AiService(
         this.StateChanged?.Invoke();
     }
 
-    async Task PlaySoundIf(string? soundPath)
+    async Task PlaySoundIf(Func<Task<Stream>>? soundFactory)
     {
-        if (String.IsNullOrEmpty(soundPath))
+        if (soundFactory == null)
             return;
 
         if (this.Acknowledgement == AiAcknowledgement.AudioBlip)
         {
-            var player = audioManager.CreatePlayer(await FileSystem.OpenAppPackageFileAsync(soundPath));
-            player.Play();
+            var stream = await soundFactory();
+            await audioPlayer.PlayAsync(stream);
         }
     }
 }

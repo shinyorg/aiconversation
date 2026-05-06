@@ -2,7 +2,7 @@
 
 ## Interface: `IAiService`
 
-**Namespace**: `Shiny.Maui.AI`
+**Namespace**: `Shiny.Maui.AiConversation`
 
 The central orchestrator for all AI interactions in a .NET MAUI app.
 
@@ -32,11 +32,11 @@ Raised when the AI produces a response. The `AiResponse` record contains:
 | `Acknowledgement` | `AiAcknowledgement` | Controls response delivery mode (get/set) |
 | `SystemPrompts` | `IList<string>` | System prompts prepended to every chat request |
 | `CurrentChatMessages` | `IReadOnlyList<ChatMessage>` | In-memory chat messages for current session |
-| `OkSound` | `string?` | Sound played on successful interaction (AudioBlip mode) |
-| `CancelSound` | `string?` | Sound played on cancellation (AudioBlip mode) |
-| `ErrorSound` | `string?` | Sound played on error (AudioBlip mode) |
-| `ThinkSound` | `string?` | Sound played when AI begins processing (AudioBlip mode) |
-| `RespondingSound` | `string?` | Sound played when AI begins streaming response (AudioBlip mode) |
+| `OkSound` | `Func<Task<Stream>>?` | Stream factory for sound played on successful interaction (AudioBlip mode) |
+| `CancelSound` | `Func<Task<Stream>>?` | Stream factory for sound played on cancellation (AudioBlip mode) |
+| `ErrorSound` | `Func<Task<Stream>>?` | Stream factory for sound played on error (AudioBlip mode) |
+| `ThinkSound` | `Func<Task<Stream>>?` | Stream factory for sound played when AI begins processing (AudioBlip mode) |
+| `RespondingSound` | `Func<Task<Stream>>?` | Stream factory for sound played when AI begins streaming response (AudioBlip mode) |
 
 ## Methods
 

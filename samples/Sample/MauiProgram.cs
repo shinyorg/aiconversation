@@ -4,7 +4,7 @@ using Sample.Services;
 using Shiny;
 using Shiny.DocumentDb;
 using Shiny.DocumentDb.Sqlite;
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 namespace Sample;
 
@@ -66,11 +66,11 @@ public static class MauiProgram
             a question, it's okay to say you don't know.
             """
         );
-        aiService.OkSound = "ok.mp3";
-        aiService.CancelSound = "cancel.mp3";
-        aiService.ErrorSound = "error.mp3";
-        aiService.ThinkSound = "think.mp3";
-        aiService.RespondingSound = "responding.mp3";
+        aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
+        aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
+        aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
+        aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
+        aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
 
         return app;
     }

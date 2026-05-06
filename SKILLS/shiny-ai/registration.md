@@ -5,7 +5,7 @@
 Register the AI service in `MauiProgram.cs` using `AddShinyAi()`:
 
 ```csharp
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 var builder = MauiApp.CreateBuilder();
 
@@ -37,12 +37,12 @@ aiService.SystemPrompts.Add(
     """
 );
 
-// Configure sounds (files must exist in Resources/Raw/)
-aiService.OkSound = "ok.mp3";
-aiService.CancelSound = "cancel.mp3";
-aiService.ErrorSound = "error.mp3";
-aiService.ThinkSound = "think.mp3";
-aiService.RespondingSound = "responding.mp3";
+// Configure sounds — stream factories (files must exist in Resources/Raw/)
+aiService.OkSound = () => FileSystem.OpenAppPackageFileAsync("ok.mp3");
+aiService.CancelSound = () => FileSystem.OpenAppPackageFileAsync("cancel.mp3");
+aiService.ErrorSound = () => FileSystem.OpenAppPackageFileAsync("error.mp3");
+aiService.ThinkSound = () => FileSystem.OpenAppPackageFileAsync("think.mp3");
+aiService.RespondingSound = () => FileSystem.OpenAppPackageFileAsync("responding.mp3");
 ```
 
 ## AiServiceOptions
@@ -63,6 +63,6 @@ aiService.RespondingSound = "responding.mp3";
 
 `AddShinyAi()` automatically registers (via TryAddSingleton):
 - `TimeProvider.System`
-- `AudioManager.Current` (Plugin.Maui.Audio)
+- Speech services via `AddSpeechServices()` (when `AutoAddSpeechServices` is true, the default) — includes ISpeechToTextService, ITextToSpeechService, and IAudioPlayer from Shiny.Speech
 
-These can be overridden by registering your own implementations before calling `AddShinyAi()`.
+These can be overridden by registering your own implementations before calling `AddShinyAi()`, or by setting `opts.AutoAddSpeechServices = false`.

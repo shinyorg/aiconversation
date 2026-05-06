@@ -1,6 +1,6 @@
 using Microsoft.Extensions.AI;
 
-namespace Shiny.Maui.AI;
+namespace Shiny.Maui.AiConversation;
 
 /// <summary>
 /// Provides an <see cref="IChatClient"/> instance for the AI service.

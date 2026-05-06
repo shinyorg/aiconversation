@@ -1,9 +1,9 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Plugin.Maui.Audio;
-using Shiny.Maui.AI.Infrastructure;
+using Shiny.Maui.AiConversation.Infrastructure;
 
-namespace Shiny.Maui.AI;
+namespace Shiny.Maui.AiConversation;
 
 /// <summary>
 /// Extension methods for registering the Shiny AI service with dependency injection.
@@ -28,7 +28,6 @@ public static class ServiceCollectionExtensions
             services.AddSpeechServices();
         
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton(AudioManager.Current);
 
         services.AddSingleton<IAiService, AiService>();
         return services;

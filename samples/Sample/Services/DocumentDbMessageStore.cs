@@ -1,5 +1,5 @@
 using Shiny.DocumentDb;
-using Shiny.Maui.AI;
+using Shiny.Maui.AiConversation;
 
 namespace Sample.Services;
 

@@ -4,7 +4,7 @@
 
 An optional AI tool that allows the AI to search past conversations stored in `IMessageStore`. When registered, the AI can autonomously decide to look up previous chats when the user asks about past discussions.
 
-**Namespace**: `Shiny.Maui.AI.Infrastructure`
+**Namespace**: `Shiny.Maui.AiConversation.Infrastructure`
 
 ## How It Works
 
