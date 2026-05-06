@@ -8,33 +8,37 @@
              Title="Settings">
 
     <sc:TableView>
-        <sc:TableSection Title="Status">
-            <sc:LabelCell Title="AI Status"
-                          ValueText="{Binding CurrentStatus}" />
-        </sc:TableSection>
+        <sc:TableView.Root>
+            <sc:TableRoot>
+                <sc:TableSection Title="Status">
+                    <sc:LabelCell Title="AI Status"
+                                  ValueText="{Binding CurrentStatus}" />
+                </sc:TableSection>
 
-        <sc:TableSection Title="Wake Word"
-                         FooterText="Set a keyword to activate hands-free mode.">
-            <sc:EntryCell Title="Wake Word"
-                          ValueText="{Binding WakeWordText, Mode=TwoWay}"
-                          Placeholder="e.g. Hey Copilot" />
-            <sc:ButtonCell Title="{Binding WakeWordButtonText}"
-                           Command="{Binding ToggleWakeWordCommand}" />
-        </sc:TableSection>
+                <sc:TableSection Title="Wake Word"
+                                 FooterText="Set a keyword to activate hands-free mode.">
+                    <sc:EntryCell Title="Wake Word"
+                                  ValueText="{Binding WakeWordText, Mode=TwoWay}"
+                                  Placeholder="e.g. Hey Copilot" />
+                    <sc:ButtonCell Title="{Binding WakeWordButtonText}"
+                                   Command="{Binding ToggleWakeWordCommand}" />
+                </sc:TableSection>
 
-        <sc:TableSection Title="Response Mode"
-                         FooterText="Controls how the AI acknowledges responses.">
-            <sc:PickerCell Title="Acknowledgement"
-                           ItemsSource="{Binding AcknowledgementOptions}"
-                           SelectedItem="{Binding SelectedAcknowledgementName, Mode=TwoWay}"
-                           UsePickToClose="True" />
-        </sc:TableSection>
+                <sc:TableSection Title="Response Mode"
+                                 FooterText="Controls how the AI acknowledges responses.">
+                    <sc:PickerCell Title="Acknowledgement"
+                                   ItemsSource="{Binding AcknowledgementOptions}"
+                                   SelectedItem="{Binding SelectedAcknowledgementName, Mode=TwoWay}"
+                                   UsePickToClose="True" />
+                </sc:TableSection>
 
-        <sc:TableSection Title="Danger Zone">
-            <sc:ButtonCell Title="Clear All Chat History"
-                           Command="{Binding ClearHistoryCommand}"
-                           ButtonTextColor="{StaticResource Danger}" />
-        </sc:TableSection>
+                <sc:TableSection Title="Danger Zone">
+                    <sc:ButtonCell Title="Clear All Chat History"
+                                   Command="{Binding ClearHistoryCommand}"
+                                   ButtonTextColor="{StaticResource Danger}" />
+                </sc:TableSection>
+            </sc:TableRoot>
+        </sc:TableView.Root>
     </sc:TableView>
 
 </ContentPage>

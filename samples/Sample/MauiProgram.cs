@@ -34,21 +34,28 @@ public static class MauiProgram
         {
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "sample_ai.db");
             opts.DatabaseProvider = new SqliteDatabaseProvider($"Data Source={dbPath}");
-
             opts.UseReflectionFallback = false;
         });
         
-        builder.Services.AddSingleton<GitHubCopilotChatClientProvider>();
-        builder.Services.AddSingleton<IChatClientProvider>(sp => sp.GetRequiredService<GitHubCopilotChatClientProvider>());
+        // builder.Services.AddAzureSpeech("your-subscription-key", "eastus");
+        
+        // builder.Services.AddElevenLabsTextToSpeech(new ElevenLabsConfig
+        // {
+        //     ApiKey = "your-api-key",
+        //     DefaultVoiceId = "21m00Tcm4TlvDq8ikWAM",  // Rachel (default)
+        //     ModelId = "eleven_multilingual_v2"           // default
+        // });
+        
+        builder.Services.AddSingleton<GitHubCopilotChatClientProvider>(sp => (GitHubCopilotChatClientProvider)sp.GetRequiredService<IChatClientProvider>());
         builder.Services.AddShinyAi(opts =>
         {
-            opts.SetMessageStore<DocumentDbMessageStore>();
+            opts.SetMessageStore<DocumentDbMessageStore>(true);
+            opts.SetChatClientProvider<GitHubCopilotChatClientProvider>();
         });
 
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
-
         var app = builder.Build();
 
         var aiService = app.Services.GetRequiredService<IAiService>();
