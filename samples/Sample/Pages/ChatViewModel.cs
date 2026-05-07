@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
@@ -13,6 +14,7 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
     const int PageSize = 25;
     bool hasMoreHistory = true;
     bool isLoadingHistory;
+    readonly StringBuilder responseBuffer = new();
 
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
@@ -47,17 +49,26 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
 
     void OnAiResponded(AiResponse response)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        if (response.Update.Text is { } text)
+            this.responseBuffer.Append(text);
+
+        if (response.IsResponseCompleted)
         {
-            this.Messages.Add(new ChatMessage
+            var fullText = this.responseBuffer.ToString();
+            this.responseBuffer.Clear();
+
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                Text = response.Message,
-                IsFromMe = false,
-                SenderId = "copilot",
-                Timestamp = response.Timestamp,
-                DateSent = response.Timestamp
+                this.Messages.Add(new ChatMessage
+                {
+                    Text = fullText,
+                    IsFromMe = false,
+                    SenderId = "copilot",
+                    Timestamp = DateTimeOffset.Now,
+                    DateSent = DateTimeOffset.Now
+                });
             });
-        });
+        }
     }
 
     async Task LoadHistory()

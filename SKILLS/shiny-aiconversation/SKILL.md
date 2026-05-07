@@ -151,7 +151,8 @@ public class MyChatClientProvider : IChatClientProvider
 ```csharp
 public class MyMessageStore : IMessageStore
 {
-    public Task Store(AiChatMessage chatMessage, CancellationToken cancellationToken) { ... }
+    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken) { ... }
+    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken) { ... }
     public Task Clear(DateTimeOffset? beforeDate = null) { ... }
     public Task<IReadOnlyList<AiChatMessage>> Query(
         string? messageContains = null,
@@ -184,11 +185,13 @@ await aiService.ClearChatHistory();
 await aiService.ClearChatHistory(beforeDate: oneWeekAgo);
 
 // React to state changes
-aiService.StateChanged += () => { /* update UI */ };
+aiService.StatusChanged += (state) => { /* update UI with new AiState */ };
 aiService.AiResponded += (response) =>
 {
-    // response.Message — the AI's text
-    // response.Timestamp — when it was generated
+    // response.Update — the ChatResponseUpdate streaming chunk
+    // response.Update.Text — the text content of this chunk
+    // response.Usage — token usage details (if available)
+    // response.IsResponseCompleted — true when the AI is done responding
     // response.WasReadAloud — whether TTS was used
 };
 ```
@@ -216,7 +219,7 @@ aiService.AiResponded += (response) =>
 1. **Set sounds externally** — Never set default sound values on AiConversationService directly; configure them in MauiProgram.cs after Build()
 2. **Handle auth on-demand** — IChatClientProvider should handle authentication lazily, not force login at startup
 3. **Use TwoWay binding** for Acknowledgement in settings UIs
-4. **Subscribe/unsubscribe** to StateChanged and AiResponded in page lifecycle (OnAppearing/OnDisappearing)
+4. **Subscribe/unsubscribe** to StatusChanged and AiResponded in page lifecycle (OnAppearing/OnDisappearing)
 5. **Use CancellationToken** for all TalkTo/ListenAndTalk calls
 6. **MessageStore is optional** — The service works without it but GetChatHistory/ClearChatHistory will throw
 7. **ChatLookupAITool is opt-in** — Pass `addAiLookupTool: true` to SetMessageStore to allow the AI to search past conversations

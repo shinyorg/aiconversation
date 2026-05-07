@@ -1,3 +1,5 @@
+using Microsoft.Extensions.AI;
+
 namespace Shiny.AiConversation;
 
 /// <summary>
@@ -11,8 +13,18 @@ public interface IMessageStore
     /// </summary>
     /// <param name="chatMessage">The message to persist.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    Task Store(AiChatMessage chatMessage, CancellationToken cancellationToken);
+    Task Store(ChatMessage chatMessage, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Allows storing additional metadata about a chat response, such as tool calls or follow-up actions.
+    /// </summary>
+    /// <param name="userTriggeringMessage"></param>
+    /// <param name="update"></param>
+    /// <param name="usage"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken);
+    
     /// <summary>
     /// Clears messages from the store. If <paramref name="beforeDate"/> is specified,
     /// only messages older than that date are removed; otherwise all messages are cleared.

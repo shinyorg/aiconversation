@@ -17,7 +17,7 @@ public class AiConversationService(
     readonly SemaphoreSlim semaphore = new(1, 1);
     CancellationTokenSource? wakeWordCts;
 
-    public event Action? StateChanged;
+    public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
     public bool IsWakeWordEnabled { get; private set; }
     public string? WakeWord { get; private set; }
@@ -60,13 +60,12 @@ public class AiConversationService(
                 {
                     this.SetStatus(AiState.Listening);
                     var keyword = await speechToText.ListenForKeyword([wakeWord], cancellationToken: ct);
-                    if (keyword == null)
-                        continue;
-
-                    // TODO: technically we want 
-                    var utterance = await speechToText.ListenUntilSilence(cancellationToken: ct);
-                    if (!String.IsNullOrWhiteSpace(utterance))
-                        await this.TalkTo(utterance, ct);
+                    if (keyword != null)
+                    {
+                        var utterance = await speechToText.ListenUntilSilence(cancellationToken: ct);
+                        if (!String.IsNullOrWhiteSpace(utterance))
+                            await this.TalkTo(utterance, ct);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -105,11 +104,27 @@ public class AiConversationService(
             throw new InvalidOperationException("Cannot use ListenAndTalk while wake word is active.");
 
         this.SetStatus(AiState.Listening);
-        await this.PlaySoundIf(this.OkSound);
+        try
+        {
+            await this.PlaySoundIf(this.OkSound);
 
-        var utterance = await speechToText.ListenUntilSilence(cancellationToken: cancellationToken);
-        if (!String.IsNullOrWhiteSpace(utterance))
-            await this.TalkTo(utterance, cancellationToken);
+            var utterance = await speechToText.ListenUntilSilence(cancellationToken: cancellationToken);
+            if (!String.IsNullOrWhiteSpace(utterance))
+                await this.TalkTo(utterance, cancellationToken);
+            else
+                this.SetStatus(AiState.Idle);
+        }
+        catch (OperationCanceledException)
+        {
+            await this.PlaySoundIf(this.CancelSound);
+            this.SetStatus(AiState.Idle);
+        }
+        catch
+        {
+            await this.PlaySoundIf(this.ErrorSound);
+            this.SetStatus(AiState.Idle);
+            throw;
+        }
     }
 
     public async Task TalkTo(
@@ -127,17 +142,14 @@ public class AiConversationService(
                 .ConfigureAwait(false);
 
             var chatMessages = this.BuildMessages(message);
-            this.currentMessages.Add(new ChatMessage(ChatRole.User, message));
+
+            var userMessage = new ChatMessage(ChatRole.User, message);
+            this.currentMessages.Add(userMessage);
 
             if (messageStore != null)
             {
                 await messageStore.Store(
-                    new AiChatMessage(
-                        Guid.NewGuid().ToString(), 
-                        message, 
-                        timeProvider.GetUtcNow(),
-                        ChatMessageDirection.User
-                    ),
+                    userMessage,
                     cancellationToken
                 );
             }
@@ -151,28 +163,33 @@ public class AiConversationService(
             await this.PlaySoundIf(this.RespondingSound);
 
             var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
-            var fullResponse = new StringBuilder();
+
             await foreach (var update in chatClient.GetStreamingResponseAsync(chatMessages, options, cancellationToken))
             {
                 if (update.Text is { } text)
                 {
-                    fullResponse.Append(text);
+                    this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, text));
+                    var usage = update.Contents.OfType<UsageContent>().FirstOrDefault()?.Details;
+
+                    this.AiResponded?.Invoke(new AiResponse(
+                        update, 
+                        usage, 
+                        update.FinishReason != null, 
+                        wasReadAloud
+                    ));
+    
+                    if (messageStore != null)
+                    {
+                        await messageStore.Store(
+                            userMessage.Text,
+                            update,
+                            usage,
+                            cancellationToken
+                        );
+                    }
                     if (wasReadAloud)
                         await textToSpeech.SpeakAsync(text, cancellationToken: cancellationToken);
                 }
-            }
-
-            var fullResponseString = fullResponse.ToString();
-            var now = timeProvider.GetUtcNow();
-            this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, fullResponseString));
-            this.AiResponded?.Invoke(new AiResponse(fullResponseString, now, wasReadAloud));
-
-            if (messageStore != null)
-            {
-                await messageStore.Store(
-                    new AiChatMessage(Guid.NewGuid().ToString(), fullResponseString, now, ChatMessageDirection.AI),
-                    cancellationToken
-                );
             }
 
             await this.PlaySoundIf(this.OkSound);
@@ -242,7 +259,7 @@ public class AiConversationService(
     void SetStatus(AiState status)
     {
         this.Status = status;
-        this.StateChanged?.Invoke();
+        this.StatusChanged?.Invoke(status);
     }
 
     async Task PlaySoundIf(string? soundName)

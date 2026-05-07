@@ -8,19 +8,20 @@ The central orchestrator for all AI interactions in a .NET MAUI app.
 
 ## Events
 
-### StateChanged
+### StatusChanged
 ```csharp
-event Action StateChanged;
+event Action<AiState> StatusChanged;
 ```
-Raised when any observable state changes (Status, WakeWord, etc.). Use `MainThread.BeginInvokeOnMainThread()` when updating UI in response.
+Raised when the service state changes, passing the new `AiState`. Use `MainThread.BeginInvokeOnMainThread()` when updating UI in response.
 
 ### AiResponded
 ```csharp
 event Action<AiResponse>? AiResponded;
 ```
-Raised when the AI produces a response. The `AiResponse` record contains:
-- `Message` (string) — the full response text
-- `Timestamp` (DateTimeOffset) — when the response was generated
+Raised per streaming chunk as the AI produces a response. The `AiResponse` record contains:
+- `Update` (ChatResponseUpdate) — the streaming update containing text, tool calls, and other content
+- `Usage` (UsageDetails?) — token usage details if available in this chunk
+- `IsResponseCompleted` (bool) — true when the AI has finished its response (FinishReason is set)
 - `WasReadAloud` (bool) — whether text-to-speech was used based on the current Acknowledgement mode
 
 ## Properties
@@ -110,7 +111,7 @@ Clears in-memory chat messages only. Does not affect persisted history.
 
 ### AiResponse
 ```csharp
-public record AiResponse(string Message, DateTimeOffset Timestamp, bool WasReadAloud);
+public record AiResponse(ChatResponseUpdate Update, UsageDetails? Usage, bool IsResponseCompleted, bool WasReadAloud);
 ```
 
 ### AiChatMessage

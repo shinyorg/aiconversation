@@ -11,7 +11,7 @@ public interface IAiConversationService
     /// <summary>
     /// Raised when any observable state changes (Status, CurrentToken, IsWakeWordEnabled, etc).
     /// </summary>
-    event Action StateChanged;
+    event Action<AiState> StatusChanged;
 
     /// <summary>
     /// Raised when the AI produces a response. The string parameter contains the full response text.
@@ -171,4 +171,9 @@ public enum AiAcknowledgement
     Full
 }
 
-public record AiResponse(string Message, DateTimeOffset Timestamp, bool WasReadAloud);
+public record AiResponse(
+    ChatResponseUpdate Update, 
+    UsageDetails? Usage,
+    bool IsResponseCompleted,
+    bool WasReadAloud
+);

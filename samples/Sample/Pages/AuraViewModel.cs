@@ -1,3 +1,4 @@
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
@@ -8,6 +9,9 @@ namespace Sample.Pages;
 public partial class AuraViewModel(IAiConversationService aiService)
     : ObservableObject, IPageLifecycleAware
 {
+    CancellationTokenSource? listenCts;
+    readonly StringBuilder responseBuffer = new();
+
     public AiState CurrentState => aiService.Status;
     public string StatusText => aiService.Status.ToString();
 
@@ -30,16 +34,39 @@ public partial class AuraViewModel(IAiConversationService aiService)
     [RelayCommand]
     void DismissResponse() => this.IsResponseVisible = false;
 
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    async Task AuraTapped()
+    {
+        if (aiService.Status == AiState.Idle)
+        {
+            this.listenCts = new CancellationTokenSource();
+            try
+            {
+                await aiService.ListenAndTalk(this.listenCts.Token);
+            }
+            catch (InvalidOperationException) { }
+            finally
+            {
+                this.listenCts?.Dispose();
+                this.listenCts = null;
+            }
+        }
+        else if (aiService.WakeWord == null)
+        {
+            this.listenCts?.Cancel();
+        }
+    }
+
     public void OnAppearing()
     {
-        aiService.StateChanged += this.OnStateChanged;
+        aiService.StatusChanged += this.OnStatusChanged;
         aiService.AiResponded += this.OnAiResponded;
         RefreshAll();
     }
 
     public void OnDisappearing()
     {
-        aiService.StateChanged -= this.OnStateChanged;
+        aiService.StatusChanged -= this.OnStatusChanged;
         aiService.AiResponded -= this.OnAiResponded;
     }
 
@@ -48,15 +75,27 @@ public partial class AuraViewModel(IAiConversationService aiService)
         if (response.WasReadAloud)
             return;
 
-        MainThread.BeginInvokeOnMainThread(() =>
+        if (response.Update.Text is { } text)
+            this.responseBuffer.Append(text);
+
+        if (response.IsResponseCompleted)
         {
-            this.LastResponseText = response.Message;
-            this.IsResponseVisible = true;
-        });
+            var fullText = this.responseBuffer.ToString();
+            this.responseBuffer.Clear();
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                this.LastResponseText = fullText;
+                this.IsResponseVisible = true;
+            });
+        }
     }
 
-    void OnStateChanged()
+    void OnStatusChanged(AiState state)
     {
+        if (state == AiState.Thinking)
+            this.responseBuffer.Clear();
+
         MainThread.BeginInvokeOnMainThread(RefreshAll);
     }
 

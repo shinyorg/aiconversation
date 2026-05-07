@@ -31,7 +31,11 @@ public class AiConversationServiceTests
             .ReturnsAsync(chatClient.Instance());
 
         messageStore
-            .Store(Arg<AiChatMessage>.Any(), Arg<CancellationToken>.Any())
+            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
+            .Returns(Task.CompletedTask);
+
+        messageStore
+            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
         textToSpeech
@@ -91,8 +95,8 @@ public class AiConversationServiceTests
         await service.TalkTo("Test", CancellationToken.None);
 
         await Assert.That(received).IsNotNull();
-        await Assert.That(received!.Message).IsEqualTo("Response text");
-        await Assert.That(received.Timestamp).IsEqualTo(FixedTime);
+        await Assert.That(received!.Update.Text).IsEqualTo("Response text");
+        await Assert.That(received.IsResponseCompleted).IsTrue();
     }
 
     [Test]
@@ -104,8 +108,12 @@ public class AiConversationServiceTests
         await service.TalkTo("Stored input", CancellationToken.None);
 
         messageStore
-            .Store(Arg<AiChatMessage>.Any(), Arg<CancellationToken>.Any())
-            .Called(Count.Exactly(2));
+            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
+            .Called(Count.Once());
+
+        messageStore
+            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
+            .Called(Count.Once());
     }
 
     [Test]
@@ -117,7 +125,11 @@ public class AiConversationServiceTests
         await service.TalkTo("Test", CancellationToken.None);
 
         messageStore
-            .Store(Arg<AiChatMessage>.Any(), Arg<CancellationToken>.Any())
+            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
+            .Called(Count.Never());
+
+        messageStore
+            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
             .Called(Count.Never());
     }
 
@@ -128,7 +140,7 @@ public class AiConversationServiceTests
         SetupStreamingResponse(chatClient, "OK");
 
         var states = new List<AiState>();
-        service.StateChanged += () => states.Add(service.Status);
+        service.StatusChanged += state => states.Add(state);
 
         await service.TalkTo("Test", CancellationToken.None);
 
@@ -376,10 +388,12 @@ public class AiConversationServiceTests
             .Returns(ToAsyncEnumerable(CreateUpdate(responseText)));
     }
 
-    static ChatResponseUpdate CreateUpdate(string text)
+    static ChatResponseUpdate CreateUpdate(string text, bool isComplete = true)
     {
         var update = new ChatResponseUpdate();
         update.Contents.Add(new TextContent(text));
+        if (isComplete)
+            update.FinishReason = ChatFinishReason.Stop;
         return update;
     }
 

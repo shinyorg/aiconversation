@@ -15,6 +15,14 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
 - **Sound Effects** — Configurable sound stream factories for each state transition
 
+## TODO
+- Voice interruption (stop TTS when user starts talking OR an additional "Hey Copilot" wake word to interrupt)
+    - Quiet words?  Stop, cancel, enough, silence, shut up
+    - Interruption Mode - any words, wake words, specific words?
+- Sessions - ability to start different AI sessions based on time passed
+- Token Burn per message
+- Improved eventing of what happened
+
 ## Installation
 
 ```bash
@@ -96,9 +104,14 @@ using Shiny.AiConversation;
 
 public class MyMessageStore : IMessageStore
 {
-    public Task Store(AiChatMessage chatMessage, CancellationToken cancellationToken)
+    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken)
     {
-        // Persist the message
+        // Persist user or assistant ChatMessage
+    }
+
+    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken)
+    {
+        // Persist streaming response metadata (tool calls, usage, etc.)
     }
 
     public Task Clear(DateTimeOffset? beforeDate = null)
@@ -156,8 +169,8 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 | `Status` | Current `AiState` (Idle / Listening / Thinking / Responding) |
 | `Acknowledgement` | Get/set the response delivery mode |
 | `SystemPrompts` | System prompts prepended to every request |
-| `StateChanged` | Event fired on any state change |
-| `AiResponded` | Event fired with the AI's response text, timestamp, and whether it was read aloud |
+| `StatusChanged` | Event fired with the new `AiState` on any state change |
+| `AiResponded` | Event fired per streaming chunk with `AiResponse` (Update, Usage, IsResponseCompleted, WasReadAloud) |
 
 ### Acknowledgement Modes
 

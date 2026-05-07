@@ -41,6 +41,7 @@
 
 @code {
     readonly List<AiChatMessage> messages = [];
+    readonly System.Text.StringBuilder responseBuffer = new();
     string inputText = "";
     ElementReference messagesContainer;
     bool shouldScrollToBottom;
@@ -48,7 +49,7 @@
     protected override async Task OnInitializedAsync()
     {
         AiService.AiResponded += OnAiResponded;
-        AiService.StateChanged += OnStateChanged;
+        AiService.StatusChanged += OnStatusChanged;
 
         try
         {
@@ -100,21 +101,33 @@
 
     void OnAiResponded(AiResponse response)
     {
-        InvokeAsync(() =>
+        if (response.Update.Text is { } text)
+            responseBuffer.Append(text);
+
+        if (response.IsResponseCompleted)
         {
-            messages.Add(new AiChatMessage(
-                Guid.NewGuid().ToString(),
-                response.Message,
-                response.Timestamp,
-                ChatMessageDirection.AI
-            ));
-            shouldScrollToBottom = true;
-            StateHasChanged();
-        });
+            var fullText = responseBuffer.ToString();
+            responseBuffer.Clear();
+
+            InvokeAsync(() =>
+            {
+                messages.Add(new AiChatMessage(
+                    Guid.NewGuid().ToString(),
+                    fullText,
+                    DateTimeOffset.Now,
+                    ChatMessageDirection.AI
+                ));
+                shouldScrollToBottom = true;
+                StateHasChanged();
+            });
+        }
     }
 
-    void OnStateChanged()
+    void OnStatusChanged(AiState state)
     {
+        if (state == AiState.Thinking)
+            responseBuffer.Clear();
+
         InvokeAsync(StateHasChanged);
     }
 
@@ -142,6 +155,6 @@
     public void Dispose()
     {
         AiService.AiResponded -= OnAiResponded;
-        AiService.StateChanged -= OnStateChanged;
+        AiService.StatusChanged -= OnStatusChanged;
     }
 }

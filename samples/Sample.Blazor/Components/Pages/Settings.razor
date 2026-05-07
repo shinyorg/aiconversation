@@ -1,6 +1,5 @@
 @page "/settings"
 @inject IAiConversationService AiService
-@inject Sample.Blazor.Services.GitHubCopilotChatClientProvider Copilot
 @implements IDisposable
 
 <PageTitle>Settings</PageTitle>
@@ -54,19 +53,6 @@
         </div>
     </div>
 
-    <div class="settings-section">
-        <h3>Account</h3>
-        <div class="settings-card">
-            @if (Copilot.IsAuthenticated)
-            {
-                <button class="btn-danger" @onclick="SignOut">Sign Out</button>
-            }
-            else
-            {
-                <span class="settings-value">Not signed in</span>
-            }
-        </div>
-    </div>
 </div>
 
 @code {
@@ -76,7 +62,7 @@
 
     protected override void OnInitialized()
     {
-        AiService.StateChanged += OnStateChanged;
+        AiService.StatusChanged += OnStatusChanged;
         systemPrompt = AiService.SystemPrompts.FirstOrDefault() ?? "";
         selectedAcknowledgement = AiService.Acknowledgement.ToString();
     }
@@ -114,19 +100,13 @@
         }
     }
 
-    void SignOut()
-    {
-        Copilot.SignOut();
-        StateHasChanged();
-    }
-
-    void OnStateChanged()
+    void OnStatusChanged(AiState state)
     {
         InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
-        AiService.StateChanged -= OnStateChanged;
+        AiService.StatusChanged -= OnStatusChanged;
     }
 }

@@ -17,5 +17,7 @@
     <Project Path="samples/Sample/Sample.csproj" />
     <Project Path="samples/Sample.Blazor/Sample.Blazor.csproj" />
     <Project Path="src/Shiny.AiConversation/Shiny.AiConversation.csproj" />
+    <Project Path="src\Shiny.AiConversation.Maui.GithubCopilot\Shiny.AiConversation.Maui.GithubCopilot.csproj" />
+    <Project Path="src\Shiny.AiConversation.OpenAi\Shiny.AiConversation.OpenAi.csproj" />
     <Project Path="tests/Shiny.AiConversation.Tests/Shiny.AiConversation.Tests.csproj" />
 </Solution>

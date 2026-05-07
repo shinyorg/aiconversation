@@ -33,7 +33,6 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Microsoft.Maui.Controls" />
-		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 		<PackageReference Include="Shiny.DocumentDb.Extensions.DependencyInjection" />
 		<PackageReference Include="Shiny.DocumentDb.Sqlite" />
@@ -45,6 +44,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Shiny.AiConversation\Shiny.AiConversation.csproj" />
+		<ProjectReference Include="..\..\src\Shiny.AiConversation.Maui.GithubCopilot\Shiny.AiConversation.Maui.GithubCopilot.csproj" />
 	</ItemGroup>
 
 </Project>

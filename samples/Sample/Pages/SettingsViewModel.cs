@@ -45,16 +45,16 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
 
     public void OnAppearing()
     {
-        aiService.StateChanged += this.OnStateChanged;
+        aiService.StatusChanged += this.OnStatusChanged;
         RefreshAll();
     }
 
     public void OnDisappearing()
     {
-        aiService.StateChanged -= this.OnStateChanged;
+        aiService.StatusChanged -= this.OnStatusChanged;
     }
 
-    void OnStateChanged()
+    void OnStatusChanged(AiState state)
     {
         MainThread.BeginInvokeOnMainThread(RefreshAll);
     }

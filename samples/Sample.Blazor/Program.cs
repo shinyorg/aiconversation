@@ -1,19 +1,19 @@
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Sample.Blazor.Services;
 using Shiny;
 using Shiny.AiConversation;
 
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddSingleton<GitHubCopilotChatClientProvider>(sp =>
-    (GitHubCopilotChatClientProvider)sp.GetRequiredService<IChatClientProvider>());
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<Sample.Blazor.Components.App>("#app");
 
 builder.Services.AddSingleton<InMemoryMessageStore>();
 builder.Services.AddShinyAiConversation(opts =>
 {
-    opts.SetChatClientProvider<GitHubCopilotChatClientProvider>();
+    opts.AddStaticOpenAIChatClient(
+        "YOUR API KEY HERE",
+        "https://api.openai.com/v1",
+        "gpt-4o"
+    );
     opts.SetMessageStore<InMemoryMessageStore>();
 });
 
@@ -28,17 +28,4 @@ aiService.SystemPrompts.Add(
     """
 );
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseAntiforgery();
-
-app.MapRazorComponents<Sample.Blazor.Components.App>()
-    .AddInteractiveServerRenderMode();
-
-app.Run();
+await app.RunAsync();

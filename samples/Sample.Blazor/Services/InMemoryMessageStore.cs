@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using Shiny.AiConversation;
 
 namespace Sample.Blazor.Services;
@@ -7,11 +8,38 @@ public class InMemoryMessageStore : IMessageStore
     readonly List<AiChatMessage> messages = [];
     readonly object sync = new();
 
-    public Task Store(AiChatMessage chatMessage, CancellationToken cancellationToken)
+    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken)
     {
-        lock (sync)
-            messages.Add(chatMessage);
+        var direction = chatMessage.Role == ChatRole.User
+            ? ChatMessageDirection.User
+            : ChatMessageDirection.AI;
 
+        lock (sync)
+        {
+            messages.Add(new AiChatMessage(
+                Guid.NewGuid().ToString(),
+                chatMessage.Text ?? "",
+                DateTimeOffset.UtcNow,
+                direction
+            ));
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken)
+    {
+        if (update?.Text is not { } text)
+            return Task.CompletedTask;
+
+        lock (sync)
+        {
+            messages.Add(new AiChatMessage(
+                Guid.NewGuid().ToString(),
+                text,
+                DateTimeOffset.UtcNow,
+                ChatMessageDirection.AI
+            ));
+        }
         return Task.CompletedTask;
     }
 

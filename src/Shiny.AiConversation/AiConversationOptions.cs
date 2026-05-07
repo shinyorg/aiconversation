@@ -13,6 +13,8 @@ namespace Shiny;
 /// </summary>
 public class AiConversationOptions(IServiceCollection services)
 {
+    public IServiceCollection Services => services;
+    
     /// <summary>
     /// Will call for Shiny Speech Service registration if true (default)
     /// </summary>

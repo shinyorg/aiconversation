@@ -12,6 +12,9 @@
 
         <Grid VerticalOptions="Center" HorizontalOptions="Center"
               WidthRequest="300" HeightRequest="300">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding AuraTappedCommand}" />
+            </Grid.GestureRecognizers>
 
             <!-- Ripple ring (visible during listening) -->
             <Ellipse x:Name="RippleRing"
