@@ -43,20 +43,20 @@ public class GitHubCopilotChatClientProvider : IChatClientProvider
 
     public async Task<IChatClient> GetChatClient(CancellationToken cancelToken = default)
     {
-        var githubToken = await SecureStorage.Default.GetAsync(TokenStorageKey);
+        var githubToken = await SecureStorage.Default.GetAsync(TokenStorageKey).ConfigureAwait(false);
         if (githubToken == null)
-            await this.StartAuthentication(cancelToken);
+            await this.StartAuthentication(cancelToken).ConfigureAwait(false);
 
         string copilotToken;
         try
         {
-            copilotToken = await this.GetCopilotToken(cancelToken);
+            copilotToken = await this.GetCopilotToken(cancelToken).ConfigureAwait(false);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             this.SignOut();
-            await this.StartAuthentication(cancelToken);
-            copilotToken = await this.GetCopilotToken(cancelToken);
+            await this.StartAuthentication(cancelToken).ConfigureAwait(false);
+            copilotToken = await this.GetCopilotToken(cancelToken).ConfigureAwait(false);
         }
 
         var options = new OpenAIClientOptions { Endpoint = new Uri(CopilotBaseUrl) };
@@ -119,7 +119,7 @@ public class GitHubCopilotChatClientProvider : IChatClientProvider
     {
         try
         {
-            var deviceCode = await this.StartDeviceFlow(cts.Token);
+            var deviceCode = await this.StartDeviceFlow(cts.Token).ConfigureAwait(false);
 
             // Show the device code to the user via a popup on the main page
             var page = Application.Current?.Windows.FirstOrDefault()?.Page
@@ -134,18 +134,18 @@ public class GitHubCopilotChatClientProvider : IChatClientProvider
                     "OK"
                 );
                 await Browser.Default.OpenAsync(deviceCode.VerificationUri, BrowserLaunchMode.SystemPreferred);
-            });
+            }).ConfigureAwait(false);
 
             cts.CancelAfter(TimeSpan.FromSeconds(deviceCode.ExpiresIn));
             var interval = TimeSpan.FromSeconds(deviceCode.Interval);
 
             while (!cts.Token.IsCancellationRequested)
             {
-                await Task.Delay(interval, cts.Token);
+                await Task.Delay(interval, cts.Token).ConfigureAwait(false);
 
-                if (await this.PollForToken(deviceCode, cts.Token))
+                if (await this.PollForToken(deviceCode, cts.Token).ConfigureAwait(false))
                 {
-                    var token = await SecureStorage.Default.GetAsync(TokenStorageKey);
+                    var token = await SecureStorage.Default.GetAsync(TokenStorageKey).ConfigureAwait(false);
                     this.AccessTokenChanged?.Invoke(token);
                     tcs.TrySetResult();
                     return;

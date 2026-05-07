@@ -20,8 +20,9 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
     - Quiet words?  Stop, cancel, enough, silence, shut up
     - Interruption Mode - any words, wake words, specific words?
 - Sessions - ability to start different AI sessions based on time passed
-- Token Burn per message
-- Improved eventing of what happened
+- Acknowledgement sounds is present, but we need acknowledgement "Hi User" or "What can I help you with?"
+  - Manually activation could just be a sound?  Maybe only the wake word should have a greeting, and manual text input doesn't need it?
+- Open up internal speech recognition results
 
 ## Installation
 
@@ -73,7 +74,45 @@ By default, the library resolves `IChatClient` from DI. Simply register your cha
 builder.Services.AddChatClient(new OpenAIClient("your-api-key").GetChatClient("gpt-4o").AsIChatClient());
 ```
 
-For advanced scenarios (on-demand authentication, token refresh, etc.), implement `IChatClientProvider`:
+#### Shiny.AiConversation.OpenAi
+
+A ready-made static OpenAI provider. Works with any OpenAI-compatible endpoint (OpenAI, Azure OpenAI, Ollama, etc.).
+
+```bash
+dotnet add package Shiny.AiConversation.OpenAi
+```
+
+```csharp
+builder.Services.AddShinyAiConversation(opts =>
+{
+    opts.AddStaticOpenAIChatClient(
+        apiToken: "your-api-key",
+        endpointUri: "https://api.openai.com/v1",
+        modelName: "gpt-4o"
+    );
+});
+```
+
+#### Shiny.AiConversation.Maui.GithubCopilot
+
+A MAUI-specific provider that authenticates via the GitHub device code flow and uses the Copilot API. Tokens are stored in `SecureStorage`. Authentication is fully self-contained — the library shows a popup with the device code, copies it to the clipboard, and opens the browser for the user to authorize.
+
+```bash
+dotnet add package Shiny.AiConversation.Maui.GithubCopilot
+```
+
+```csharp
+builder.Services.AddShinyAiConversation(opts =>
+{
+    opts.AddGithubCopilotChatClient();
+});
+```
+
+No additional setup is needed — the provider handles the entire OAuth flow, token exchange, caching, and re-authentication on expiry.
+
+#### Custom Provider
+
+For other backends, implement `IChatClientProvider`:
 
 ```csharp
 using Microsoft.Extensions.AI;

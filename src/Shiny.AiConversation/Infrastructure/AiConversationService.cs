@@ -44,6 +44,7 @@ public class AiConversationService(
         if (this.IsWakeWordEnabled)
             throw new InvalidOperationException("Wake word is already active.");
 
+        // TODO: this can't be called if TalkTo is running
         await this.semaphore.WaitAsync();
         this.semaphore.Release();
 
@@ -100,6 +101,7 @@ public class AiConversationService(
     
     public async Task ListenAndTalk(CancellationToken cancellationToken)
     {
+        // TODO: this can't be called if TalkTo is running
         if (this.IsWakeWordEnabled)
             throw new InvalidOperationException("Cannot use ListenAndTalk while wake word is active.");
 
@@ -259,7 +261,9 @@ public class AiConversationService(
     void SetStatus(AiState status)
     {
         this.Status = status;
-        this.StatusChanged?.Invoke(status);
+        var handler = this.StatusChanged;
+        if (handler != null)
+            _ = Task.Run(() => handler.Invoke(status));
     }
 
     async Task PlaySoundIf(string? soundName)
