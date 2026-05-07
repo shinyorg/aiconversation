@@ -23,6 +23,7 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - Acknowledgement sounds is present, but we need acknowledgement "Hi User" or "What can I help you with?"
   - Manually activation could just be a sound?  Maybe only the wake word should have a greeting, and manual text input doesn't need it?
 - Open up internal speech recognition results
+- TTS reading a stream is awful right now
 
 ## Installation
 
@@ -148,9 +149,9 @@ public class MyMessageStore : IMessageStore
         // Persist user or assistant ChatMessage
     }
 
-    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken)
+    public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
-        // Persist streaming response metadata (tool calls, usage, etc.)
+        // Persist the complete AI response
     }
 
     public Task Clear(DateTimeOffset? beforeDate = null)
@@ -209,7 +210,7 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 | `Acknowledgement` | Get/set the response delivery mode |
 | `SystemPrompts` | System prompts prepended to every request |
 | `StatusChanged` | Event fired with the new `AiState` on any state change |
-| `AiResponded` | Event fired per streaming chunk with `AiResponse` (Update, Usage, IsResponseCompleted, WasReadAloud) |
+| `AiResponded` | Event fired when the AI completes a response with `AiResponse` (Response, WasReadAloud) |
 
 ### Acknowledgement Modes
 

@@ -16,43 +16,31 @@
                 <TapGestureRecognizer Command="{Binding AuraTappedCommand}" />
             </Grid.GestureRecognizers>
 
-            <!-- Ripple ring (visible during listening) -->
+            <!-- Animations commented out for now — just show status text -->
             <Ellipse x:Name="RippleRing"
                      WidthRequest="280" HeightRequest="280"
                      HorizontalOptions="Center" VerticalOptions="Center"
-                     Stroke="{Binding AuraColor}"
                      StrokeThickness="2"
                      Fill="Transparent"
                      Opacity="0"
                      IsVisible="False" />
 
-            <!-- Outer ring -->
             <Ellipse x:Name="OuterRing"
                      WidthRequest="250" HeightRequest="250"
                      HorizontalOptions="Center" VerticalOptions="Center"
                      StrokeThickness="3"
-                     Stroke="{Binding AuraColor}"
-                     Opacity="0.3">
-                <Ellipse.Fill>
-                    <RadialGradientBrush>
-                        <GradientStop Color="Transparent" Offset="0.6" />
-                        <GradientStop Color="{Binding AuraColor}" Offset="1.0" />
-                    </RadialGradientBrush>
-                </Ellipse.Fill>
-            </Ellipse>
+                     Opacity="0.3" />
 
-            <!-- Inner orb -->
             <Ellipse x:Name="InnerOrb"
                      WidthRequest="120" HeightRequest="120"
                      HorizontalOptions="Center" VerticalOptions="Center"
-                     Opacity="0.5">
-                <Ellipse.Fill>
-                    <RadialGradientBrush>
-                        <GradientStop Color="{Binding AuraColor}" Offset="0.0" />
-                        <GradientStop Color="Transparent" Offset="1.0" />
-                    </RadialGradientBrush>
-                </Ellipse.Fill>
-            </Ellipse>
+                     Opacity="0.5" />
+
+            <Label Text="Tap to talk"
+                   FontSize="16"
+                   TextColor="#A29BFE"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center" />
 
         </Grid>
 
@@ -61,7 +49,7 @@
                Text="{Binding StatusText}"
                FontSize="24"
                FontAttributes="Bold"
-               TextColor="{Binding AuraColor}"
+               TextColor="#A29BFE"
                HorizontalOptions="Center"
                Margin="0,0,0,40" />
 

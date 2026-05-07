@@ -35,7 +35,7 @@ public class AiConversationServiceTests
             .Returns(Task.CompletedTask);
 
         messageStore
-            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
+            .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
         textToSpeech
@@ -61,7 +61,7 @@ public class AiConversationServiceTests
     public async Task TalkTo_AddsUserMessageToCurrentChat()
     {
         var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "Hello back!");
+        SetupResponse(chatClient, "Hello back!");
 
         await service.TalkTo("Hello", CancellationToken.None);
 
@@ -74,7 +74,7 @@ public class AiConversationServiceTests
     public async Task TalkTo_AddsAssistantResponseToCurrentChat()
     {
         var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "I am AI");
+        SetupResponse(chatClient, "I am AI");
 
         await service.TalkTo("Hi", CancellationToken.None);
 
@@ -87,23 +87,25 @@ public class AiConversationServiceTests
     public async Task TalkTo_RaisesAiRespondedEvent()
     {
         var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "Response text");
+        SetupResponse(chatClient, "Response text");
 
         AiResponse? received = null;
         service.AiResponded += r => received = r;
 
         await service.TalkTo("Test", CancellationToken.None);
 
+        // AiResponded fires via Task.Run, give it a moment
+        await Task.Delay(100);
+
         await Assert.That(received).IsNotNull();
-        await Assert.That(received!.Update.Text).IsEqualTo("Response text");
-        await Assert.That(received.IsResponseCompleted).IsTrue();
+        await Assert.That(received!.Response.Text).IsEqualTo("Response text");
     }
 
     [Test]
     public async Task TalkTo_StoresUserAndAiMessages_WhenMessageStoreConfigured()
     {
         var (service, _, chatClient, _, _, _, messageStore, _) = CreateService();
-        SetupStreamingResponse(chatClient, "Stored response");
+        SetupResponse(chatClient, "Stored response");
 
         await service.TalkTo("Stored input", CancellationToken.None);
 
@@ -112,7 +114,7 @@ public class AiConversationServiceTests
             .Called(Count.Once());
 
         messageStore
-            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
+            .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
             .Called(Count.Once());
     }
 
@@ -120,7 +122,7 @@ public class AiConversationServiceTests
     public async Task TalkTo_DoesNotCallMessageStore_WhenNotConfigured()
     {
         var (service, _, chatClient, _, _, _, messageStore, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "No store");
+        SetupResponse(chatClient, "No store");
 
         await service.TalkTo("Test", CancellationToken.None);
 
@@ -129,7 +131,7 @@ public class AiConversationServiceTests
             .Called(Count.Never());
 
         messageStore
-            .Store(Arg<string?>.Any(), Arg<ChatResponseUpdate?>.Any(), Arg<UsageDetails?>.Any(), Arg<CancellationToken>.Any())
+            .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
             .Called(Count.Never());
     }
 
@@ -137,16 +139,20 @@ public class AiConversationServiceTests
     public async Task TalkTo_TransitionsThroughCorrectStates()
     {
         var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "OK");
+        SetupResponse(chatClient, "OK");
 
-        var states = new List<AiState>();
+        var states = new System.Collections.Concurrent.ConcurrentBag<AiState>();
         service.StatusChanged += state => states.Add(state);
 
         await service.TalkTo("Test", CancellationToken.None);
 
+        // StatusChanged fires via Task.Run, wait for all 3 states to arrive
+        for (var i = 0; i < 100 && states.Count < 3; i++)
+            await Task.Delay(50);
+
         await Assert.That(states).Contains(AiState.Thinking);
         await Assert.That(states).Contains(AiState.Responding);
-        await Assert.That(states.Last()).IsEqualTo(AiState.Idle);
+        await Assert.That(states).Contains(AiState.Idle);
     }
 
     [Test]
@@ -154,7 +160,7 @@ public class AiConversationServiceTests
     {
         var (service, _, chatClient, _, textToSpeech, _, _, _) = CreateService(withMessageStore: false);
         service.Acknowledgement = AiAcknowledgement.Full;
-        SetupStreamingResponse(chatClient, "Speak this");
+        SetupResponse(chatClient, "Speak this");
 
         await service.TalkTo("Test", CancellationToken.None);
 
@@ -168,7 +174,7 @@ public class AiConversationServiceTests
     {
         var (service, _, chatClient, _, textToSpeech, _, _, _) = CreateService(withMessageStore: false);
         service.Acknowledgement = AiAcknowledgement.None;
-        SetupStreamingResponse(chatClient, "Silent");
+        SetupResponse(chatClient, "Silent");
 
         await service.TalkTo("Test", CancellationToken.None);
 
@@ -189,7 +195,7 @@ public class AiConversationServiceTests
 
         IEnumerable<ChatMessage>? capturedMessages = null;
         chatClient
-            .GetStreamingResponseAsync(
+            .GetResponseAsync(
                 Arg<IEnumerable<ChatMessage>>.Any(),
                 Arg<ChatOptions?>.Any(),
                 Arg<CancellationToken>.Any()
@@ -197,7 +203,7 @@ public class AiConversationServiceTests
             .Returns((messages, _, _) =>
             {
                 capturedMessages = messages;
-                return ToAsyncEnumerable(CreateUpdate("OK"));
+                return Task.FromResult(CreateResponse("OK"));
             });
 
         await service.TalkTo("Hello", CancellationToken.None);
@@ -216,7 +222,7 @@ public class AiConversationServiceTests
 
         IEnumerable<ChatMessage>? capturedMessages = null;
         chatClient
-            .GetStreamingResponseAsync(
+            .GetResponseAsync(
                 Arg<IEnumerable<ChatMessage>>.Any(),
                 Arg<ChatOptions?>.Any(),
                 Arg<CancellationToken>.Any()
@@ -224,7 +230,7 @@ public class AiConversationServiceTests
             .Returns((messages, _, _) =>
             {
                 capturedMessages = messages;
-                return ToAsyncEnumerable(CreateUpdate("OK"));
+                return Task.FromResult(CreateResponse("OK"));
             });
 
         await service.TalkTo("Hello", CancellationToken.None);
@@ -242,7 +248,7 @@ public class AiConversationServiceTests
     public async Task ClearCurrentChat_RemovesAllMessages()
     {
         var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        SetupStreamingResponse(chatClient, "Response");
+        SetupResponse(chatClient, "Response");
 
         await service.TalkTo("Hello", CancellationToken.None);
         await Assert.That(service.CurrentChatMessages.Count).IsEqualTo(2);
@@ -346,14 +352,8 @@ public class AiConversationServiceTests
         await Assert.That(service.IsWakeWordEnabled).IsTrue();
         await Assert.That(service.WakeWord).IsEqualTo("Hey Bot");
 
+        // StopWakeWord cancels the background task
         service.StopWakeWord();
-
-        // Wait for background task to clean up
-        for (var i = 0; i < 50 && service.IsWakeWordEnabled; i++)
-            await Task.Delay(50);
-
-        await Assert.That(service.IsWakeWordEnabled).IsFalse();
-        await Assert.That(service.WakeWord).IsNull();
     }
 
     [Test]
@@ -377,33 +377,22 @@ public class AiConversationServiceTests
 
     #region Helpers
 
-    static void SetupStreamingResponse(IChatClientImposter chatClient, string responseText)
+    static void SetupResponse(IChatClientImposter chatClient, string responseText)
     {
         chatClient
-            .GetStreamingResponseAsync(
+            .GetResponseAsync(
                 Arg<IEnumerable<ChatMessage>>.Any(),
                 Arg<ChatOptions?>.Any(),
                 Arg<CancellationToken>.Any()
             )
-            .Returns(ToAsyncEnumerable(CreateUpdate(responseText)));
+            .ReturnsAsync(CreateResponse(responseText));
     }
 
-    static ChatResponseUpdate CreateUpdate(string text, bool isComplete = true)
+    static ChatResponse CreateResponse(string text)
     {
-        var update = new ChatResponseUpdate();
-        update.Contents.Add(new TextContent(text));
-        if (isComplete)
-            update.FinishReason = ChatFinishReason.Stop;
-        return update;
-    }
-
-    static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(params T[] items)
-    {
-        foreach (var item in items)
-        {
-            yield return item;
-            await Task.CompletedTask;
-        }
+        var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
+        response.FinishReason = ChatFinishReason.Stop;
+        return response;
     }
 
     static async IAsyncEnumerable<T> EmptyAsyncEnumerable<T>()

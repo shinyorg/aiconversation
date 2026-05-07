@@ -170,7 +170,7 @@ public class MyChatClientProvider : IChatClientProvider
 public class MyMessageStore : IMessageStore
 {
     public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken) { ... }
-    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken) { ... }
+    public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken) { ... }
     public Task Clear(DateTimeOffset? beforeDate = null) { ... }
     public Task<IReadOnlyList<AiChatMessage>> Query(
         string? messageContains = null,
@@ -206,10 +206,8 @@ await aiService.ClearChatHistory(beforeDate: oneWeekAgo);
 aiService.StatusChanged += (state) => { /* update UI with new AiState */ };
 aiService.AiResponded += (response) =>
 {
-    // response.Update — the ChatResponseUpdate streaming chunk
-    // response.Update.Text — the text content of this chunk
-    // response.Usage — token usage details (if available)
-    // response.IsResponseCompleted — true when the AI is done responding
+    // response.Response — the complete ChatResponse
+    // response.Response.Text — the text content of the response
     // response.WasReadAloud — whether TTS was used
 };
 ```

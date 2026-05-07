@@ -41,7 +41,6 @@
 
 @code {
     readonly List<AiChatMessage> messages = [];
-    readonly System.Text.StringBuilder responseBuffer = new();
     string inputText = "";
     ElementReference messagesContainer;
     bool shouldScrollToBottom;
@@ -101,19 +100,13 @@
 
     void OnAiResponded(AiResponse response)
     {
-        if (response.Update.Text is { } text)
-            responseBuffer.Append(text);
-
-        if (response.IsResponseCompleted)
+        if (response.Response.Text is { } text)
         {
-            var fullText = responseBuffer.ToString();
-            responseBuffer.Clear();
-
             InvokeAsync(() =>
             {
                 messages.Add(new AiChatMessage(
                     Guid.NewGuid().ToString(),
-                    fullText,
+                    text,
                     DateTimeOffset.Now,
                     ChatMessageDirection.AI
                 ));
@@ -125,9 +118,6 @@
 
     void OnStatusChanged(AiState state)
     {
-        if (state == AiState.Thinking)
-            responseBuffer.Clear();
-
         InvokeAsync(StateHasChanged);
     }
 

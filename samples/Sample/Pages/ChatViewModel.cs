@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
@@ -14,13 +13,12 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
     const int PageSize = 25;
     bool hasMoreHistory = true;
     bool isLoadingHistory;
-    readonly StringBuilder responseBuffer = new();
 
     public ObservableCollection<ChatMessage> Messages { get; } = [];
 
     public List<ChatParticipant> Participants { get; } =
     [
-        new ChatParticipant
+        new()
         {
             Id = "copilot",
             DisplayName = "Copilot",
@@ -49,19 +47,13 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
 
     void OnAiResponded(AiResponse response)
     {
-        if (response.Update.Text is { } text)
-            this.responseBuffer.Append(text);
-
-        if (response.IsResponseCompleted)
+        if (response.Response.Text is { } text)
         {
-            var fullText = this.responseBuffer.ToString();
-            this.responseBuffer.Clear();
-
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 this.Messages.Add(new ChatMessage
                 {
-                    Text = fullText,
+                    Text = text,
                     IsFromMe = false,
                     SenderId = "copilot",
                     Timestamp = DateTimeOffset.Now,
@@ -90,7 +82,7 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
         }
         catch (Exception ex)
         {
-            MainThread.BeginInvokeOnMainThread(async () => await dialogs.Alert("Error", ex.Message));
+            await dialogs.Alert("Error", ex.Message);
         }
         finally
         {
@@ -136,7 +128,7 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
 
         try
         {
-            await aiService.TalkTo(text, CancellationToken.None);
+            await aiService.TalkTo(text, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

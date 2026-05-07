@@ -12,34 +12,34 @@ public partial class AuraPage : ShinyContentPage
         InitializeComponent();
     }
 
-    protected override void OnBindingContextChanged()
-    {
-        base.OnBindingContextChanged();
-        if (BindingContext is AuraViewModel vm)
-        {
-            vm.PropertyChanged += (_, e) =>
-            {
-                if (e.PropertyName == nameof(AuraViewModel.CurrentState))
-                    AnimateForState(vm.CurrentState);
-            };
-        }
-    }
+    // protected override void OnBindingContextChanged()
+    // {
+    //     base.OnBindingContextChanged();
+    //     if (BindingContext is AuraViewModel vm)
+    //     {
+    //         vm.PropertyChanged += (_, e) =>
+    //         {
+    //             if (e.PropertyName == nameof(AuraViewModel.CurrentState))
+    //                 AnimateForState(vm.CurrentState);
+    //         };
+    //     }
+    // }
 
-    protected override void OnAppearing()
-    {
-        base.OnAppearing();
-        if (BindingContext is AuraViewModel vm)
-            AnimateForState(vm.CurrentState);
-    }
-
-    protected override void OnDisappearing()
-    {
-        base.OnDisappearing();
-        this.AbortAnimation("AuraPulse");
-        this.AbortAnimation("AuraSpin");
-        this.AbortAnimation("AuraRipple");
-        isAnimating = false;
-    }
+    // protected override void OnAppearing()
+    // {
+    //     base.OnAppearing();
+    //     // if (BindingContext is AuraViewModel vm)
+    //     //     AnimateForState(vm.CurrentState);
+    // }
+    //
+    // protected override void OnDisappearing()
+    // {
+    //     base.OnDisappearing();
+    //     // this.AbortAnimation("AuraPulse");
+    //     // this.AbortAnimation("AuraSpin");
+    //     // this.AbortAnimation("AuraRipple");
+    //     isAnimating = false;
+    // }
 
     void AnimateForState(AiState state)
     {

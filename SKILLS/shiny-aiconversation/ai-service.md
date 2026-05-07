@@ -18,10 +18,8 @@ Raised when the service state changes, passing the new `AiState`. Use `MainThrea
 ```csharp
 event Action<AiResponse>? AiResponded;
 ```
-Raised per streaming chunk as the AI produces a response. The `AiResponse` record contains:
-- `Update` (ChatResponseUpdate) — the streaming update containing text, tool calls, and other content
-- `Usage` (UsageDetails?) — token usage details if available in this chunk
-- `IsResponseCompleted` (bool) — true when the AI has finished its response (FinishReason is set)
+Raised when the AI produces a complete response. The `AiResponse` record contains:
+- `Response` (ChatResponse) — the complete chat response including text, tool calls, and usage details
 - `WasReadAloud` (bool) — whether text-to-speech was used based on the current Acknowledgement mode
 
 ## Properties
@@ -111,7 +109,7 @@ Clears in-memory chat messages only. Does not affect persisted history.
 
 ### AiResponse
 ```csharp
-public record AiResponse(ChatResponseUpdate Update, UsageDetails? Usage, bool IsResponseCompleted, bool WasReadAloud);
+public record AiResponse(ChatResponse Response, bool WasReadAloud);
 ```
 
 ### AiChatMessage

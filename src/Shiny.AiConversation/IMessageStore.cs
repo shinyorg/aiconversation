@@ -19,11 +19,10 @@ public interface IMessageStore
     /// Allows storing additional metadata about a chat response, such as tool calls or follow-up actions.
     /// </summary>
     /// <param name="userTriggeringMessage"></param>
-    /// <param name="update"></param>
-    /// <param name="usage"></param>
+    /// <param name="response"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken);
+    Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken);
     
     /// <summary>
     /// Clears messages from the store. If <paramref name="beforeDate"/> is specified,

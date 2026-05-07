@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.Extensions.AI;
 using Shiny.Speech;
 
@@ -108,22 +107,22 @@ public class AiConversationService(
         this.SetStatus(AiState.Listening);
         try
         {
-            await this.PlaySoundIf(this.OkSound);
+            await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
 
-            var utterance = await speechToText.ListenUntilSilence(cancellationToken: cancellationToken);
+            var utterance = await speechToText.ListenUntilSilence(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!String.IsNullOrWhiteSpace(utterance))
-                await this.TalkTo(utterance, cancellationToken);
+                await this.TalkTo(utterance, cancellationToken).ConfigureAwait(false);
             else
                 this.SetStatus(AiState.Idle);
         }
         catch (OperationCanceledException)
         {
-            await this.PlaySoundIf(this.CancelSound);
+            await this.PlaySoundIf(this.CancelSound).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
         }
         catch
         {
-            await this.PlaySoundIf(this.ErrorSound);
+            await this.PlaySoundIf(this.ErrorSound).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
             throw;
         }
@@ -134,11 +133,11 @@ public class AiConversationService(
         CancellationToken cancellationToken
     )
     {
-        await this.semaphore.WaitAsync(cancellationToken);
+        await this.semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             this.SetStatus(AiState.Thinking);
-            await this.PlaySoundIf(this.ThinkSound);
+            await this.PlaySoundIf(this.ThinkSound).ConfigureAwait(false);
             var chatClient = await chatClientProvider
                 .GetChatClient(cancellationToken)
                 .ConfigureAwait(false);
@@ -153,7 +152,7 @@ public class AiConversationService(
                 await messageStore.Store(
                     userMessage,
                     cancellationToken
-                );
+                ).ConfigureAwait(false);
             }
 
             var options = new ChatOptions();
@@ -162,47 +161,35 @@ public class AiConversationService(
                 options.Tools = toolList;
 
             this.SetStatus(AiState.Responding);
-            await this.PlaySoundIf(this.RespondingSound);
+            await this.PlaySoundIf(this.RespondingSound).ConfigureAwait(false);
 
             var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
+            var response = await chatClient.GetResponseAsync(chatMessages, options, cancellationToken).ConfigureAwait(false);
 
-            await foreach (var update in chatClient.GetStreamingResponseAsync(chatMessages, options, cancellationToken))
+            if (response.Text is { } responseText)
+                this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, responseText));
+
+            this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud));
+
+            if (messageStore != null)
             {
-                if (update.Text is { } text)
-                {
-                    this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, text));
-                    var usage = update.Contents.OfType<UsageContent>().FirstOrDefault()?.Details;
-
-                    this.AiResponded?.Invoke(new AiResponse(
-                        update, 
-                        usage, 
-                        update.FinishReason != null, 
-                        wasReadAloud
-                    ));
-    
-                    if (messageStore != null)
-                    {
-                        await messageStore.Store(
-                            userMessage.Text,
-                            update,
-                            usage,
-                            cancellationToken
-                        );
-                    }
-                    if (wasReadAloud)
-                        await textToSpeech.SpeakAsync(text, cancellationToken: cancellationToken);
-                }
+                await messageStore
+                    .Store(userMessage.Text, response, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            await this.PlaySoundIf(this.OkSound);
+            if (wasReadAloud && response.Text is { } spokenText)
+                await textToSpeech.SpeakAsync(spokenText, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            await this.PlaySoundIf(this.CancelSound);
+            await this.PlaySoundIf(this.CancelSound).ConfigureAwait(false);
         }
         catch
         {
-            await this.PlaySoundIf(this.ErrorSound);
+            await this.PlaySoundIf(this.ErrorSound).ConfigureAwait(false);
             throw;
         }
         finally

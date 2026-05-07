@@ -8,7 +8,7 @@
 public interface IMessageStore
 {
     Task Store(ChatMessage chatMessage, CancellationToken cancellationToken);
-    Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken);
+    Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken);
     Task Clear(DateTimeOffset? beforeDate = null);
     Task<IReadOnlyList<AiChatMessage>> Query(
         string? messageContains = null,
@@ -25,8 +25,8 @@ public interface IMessageStore
 ### Store (ChatMessage)
 Persists a user or assistant `ChatMessage`. Called automatically by AiConversationService for the user message.
 
-### Store (ChatResponseUpdate)
-Persists streaming response metadata including the `ChatResponseUpdate` chunk, the user's triggering message, and optional `UsageDetails`. Called per streaming chunk during AI response.
+### Store (ChatResponse)
+Persists the complete AI response including the user's triggering message and the `ChatResponse`. Called once after the AI finishes responding.
 
 ### Clear
 Removes messages from the store:
@@ -62,9 +62,9 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
         );
     }
 
-    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken)
+    public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
-        if (update?.Text is not { } text)
+        if (response.Text is not { } text)
             return Task.CompletedTask;
 
         return store.Insert(

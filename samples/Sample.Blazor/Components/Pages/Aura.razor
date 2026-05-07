@@ -30,7 +30,6 @@
     bool isResponseVisible;
     string auraColor = "#6C5CE7";
     string stateClass = "idle";
-    System.Text.StringBuilder responseBuffer = new();
 
     protected override void OnInitialized()
     {
@@ -41,9 +40,6 @@
 
     void OnStatusChanged(AiState state)
     {
-        if (state == AiState.Thinking)
-            responseBuffer.Clear();
-
         InvokeAsync(() =>
         {
             UpdateState();
@@ -56,17 +52,11 @@
         if (response.WasReadAloud)
             return;
 
-        if (response.Update.Text is { } text)
-            responseBuffer.Append(text);
-
-        if (response.IsResponseCompleted)
+        if (response.Response.Text is { } text)
         {
-            var fullText = responseBuffer.ToString();
-            responseBuffer.Clear();
-
             InvokeAsync(() =>
             {
-                lastResponseText = fullText;
+                lastResponseText = text;
                 isResponseVisible = true;
                 StateHasChanged();
             });

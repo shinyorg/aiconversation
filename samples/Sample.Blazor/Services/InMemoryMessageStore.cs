@@ -26,9 +26,9 @@ public class InMemoryMessageStore : IMessageStore
         return Task.CompletedTask;
     }
 
-    public Task Store(string? userTriggeringMessage, ChatResponseUpdate? update, UsageDetails? usage, CancellationToken cancellationToken)
+    public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
-        if (update?.Text is not { } text)
+        if (response.Text is not { } text)
             return Task.CompletedTask;
 
         lock (sync)

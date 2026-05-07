@@ -172,8 +172,6 @@ public enum AiAcknowledgement
 }
 
 public record AiResponse(
-    ChatResponseUpdate Update, 
-    UsageDetails? Usage,
-    bool IsResponseCompleted,
+    ChatResponse Response,
     bool WasReadAloud
 );
