@@ -14,18 +14,16 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **AI History Lookup Tool** — Optional `AITool` that lets the AI search past conversations on its own
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
 - **Sound Effects** — Configurable sound stream factories for each state transition
+- **Conversation Continuation** — AI responses ending with a question automatically keep the microphone open for a reply
+- **Voice Interruption** — Configurable quiet words (e.g., "stop", "cancel") immediately silence TTS and break out of the conversation. Any other speech during TTS interrupts and continues the conversation with the new utterance.
+- **Speech Options** — Configurable `SpeechToTextOptions` and `TextToSpeechOptions` (culture, silence timeout, voice, speech rate, etc.)
 
 ## TODO
-- Voice interruption (stop TTS when user starts talking OR an additional "Hey Copilot" wake word to interrupt)
-    - Quiet words?  Stop, cancel, enough, silence, shut up
-    - Interruption Mode - any words, wake words, specific words?
-      - Stop words - stop, cancel, shut up, nevermind, quiet, silence, enough
 - Sessions - ability to start different AI sessions based on time passed
 - Acknowledgement sounds is present, but we need acknowledgement "Hi User" or "What can I help you with?"
   - Manually activation could just be a sound?  Maybe only the wake word should have a greeting, and manual text input doesn't need it?
-
 - Speech to text - Wait for anything? then 2 seconds of silence
-- 
+
 ## Installation
 
 ```bash
@@ -210,8 +208,11 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 | `Status` | Current `AiState` (Idle / Listening / Thinking / Responding) |
 | `Acknowledgement` | Get/set the response delivery mode |
 | `SystemPrompts` | System prompts prepended to every request |
+| `QuietWords` | Words that stop TTS and break the conversation loop (default: cancel, quiet, shut up, stop, nevermind, never mind, hush). Other speech during TTS continues the conversation. Set to null to disable. |
+| `SpeechToTextOptions` | Options for speech-to-text (culture, silence timeout, prefer on-device) |
+| `TextToSpeechOptions` | Options for text-to-speech (culture, voice, speech rate, pitch, volume) |
 | `StatusChanged` | Event fired with the new `AiState` on any state change |
-| `AiResponded` | Event fired when the AI completes a response with `AiResponse` (Response, WasReadAloud) |
+| `AiResponded` | Event fired when the AI completes a response with `AiResponse` (Response, WasReadAloud, ExpectsResponse) |
 
 ### Acknowledgement Modes
 
