@@ -51,6 +51,7 @@ public class AiConversationServiceTests
             [],
             withMessageStore ? messageStore.Instance() : null
         );
+        service.QuietWords = null; // disable interruption in tests by default
 
         return (service, chatClientProvider, chatClient, speechToText, textToSpeech, audioPlayer, messageStore, timeProvider);
     }
