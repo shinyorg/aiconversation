@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Shiny.Speech;
 
 namespace Shiny.AiConversation;
 
@@ -73,7 +74,17 @@ public interface IAiConversationService
     /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
     /// </summary>
     string? RespondingSound { get; set; }
-    
+
+    /// <summary>
+    /// Options passed to speech-to-text operations (ListenUntilSilence, ContinuousRecognize).
+    /// </summary>
+    SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
+
+    /// <summary>
+    /// Options passed to text-to-speech when speaking AI responses aloud.
+    /// </summary>
+    Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
+
     /// <summary>
     /// The current processing state of the service.
     /// </summary>
@@ -173,5 +184,6 @@ public enum AiAcknowledgement
 
 public record AiResponse(
     ChatResponse Response,
-    bool WasReadAloud
+    bool WasReadAloud,
+    bool ExpectsResponse
 );

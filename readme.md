@@ -19,12 +19,13 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - Voice interruption (stop TTS when user starts talking OR an additional "Hey Copilot" wake word to interrupt)
     - Quiet words?  Stop, cancel, enough, silence, shut up
     - Interruption Mode - any words, wake words, specific words?
+      - Stop words - stop, cancel, shut up, nevermind, quiet, silence, enough
 - Sessions - ability to start different AI sessions based on time passed
 - Acknowledgement sounds is present, but we need acknowledgement "Hi User" or "What can I help you with?"
   - Manually activation could just be a sound?  Maybe only the wake word should have a greeting, and manual text input doesn't need it?
-- Open up internal speech recognition results
-- TTS reading a stream is awful right now
 
+- Speech to text - Wait for anything? then 2 seconds of silence
+- 
 ## Installation
 
 ```bash

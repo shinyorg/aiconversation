@@ -27,6 +27,7 @@ public static class AiConversationServiceCollectionExtensions
             services.AddAudioPlayer();
             services.AddSpeechServices();
         }
+
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IChatClientProvider, InjectedChatClientProvider>();
         services.TryAddSingleton<IAiConversationService, AiConversationService>();

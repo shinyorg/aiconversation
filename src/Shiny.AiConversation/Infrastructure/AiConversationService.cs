@@ -10,11 +10,12 @@ public class AiConversationService(
     IAudioPlayer audioPlayer,
     TimeProvider timeProvider,
     IEnumerable<AITool> tools,
-    IMessageStore? messageStore = null // optional
+    IMessageStore? messageStore = null
 ) : IAiConversationService
 {
     readonly SemaphoreSlim semaphore = new(1, 1);
     CancellationTokenSource? wakeWordCts;
+    bool lastResponseExpectedReply;
 
     public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
@@ -26,6 +27,8 @@ public class AiConversationService(
     public string? ErrorSound { get; set; }
     public string? ThinkSound { get; set; }
     public string? RespondingSound { get; set; }
+    public SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
+    public Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
     public AiState Status { get; private set; }
     public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
     public IList<string> SystemPrompts { get; set; } = [];
@@ -59,12 +62,24 @@ public class AiConversationService(
                 while (!ct.IsCancellationRequested)
                 {
                     this.SetStatus(AiState.Listening);
-                    var keyword = await speechToText.ListenForKeyword([wakeWord], cancellationToken: ct);
-                    if (keyword != null)
+
+                    if (this.lastResponseExpectedReply)
                     {
-                        var utterance = await speechToText.ListenUntilSilence(cancellationToken: ct);
-                        if (!String.IsNullOrWhiteSpace(utterance))
-                            await this.TalkTo(utterance, ct);
+                        // AI asked a question — skip wake word, listen directly for the reply
+                        this.lastResponseExpectedReply = false;
+                        var reply = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
+                        if (!String.IsNullOrWhiteSpace(reply))
+                            await this.TalkTo(reply, ct);
+                    }
+                    else
+                    {
+                        var keyword = await speechToText.ListenForKeyword([wakeWord], this.SpeechToTextOptions, ct);
+                        if (keyword != null)
+                        {
+                            var utterance = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
+                            if (!String.IsNullOrWhiteSpace(utterance))
+                                await this.TalkTo(utterance, ct);
+                        }
                     }
                 }
             }
@@ -104,16 +119,26 @@ public class AiConversationService(
         if (this.IsWakeWordEnabled)
             throw new InvalidOperationException("Cannot use ListenAndTalk while wake word is active.");
 
-        this.SetStatus(AiState.Listening);
         try
         {
-            await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
+            var continueListening = true;
+            while (continueListening && !cancellationToken.IsCancellationRequested)
+            {
+                this.lastResponseExpectedReply = false;
+                this.SetStatus(AiState.Listening);
+                await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
 
-            var utterance = await speechToText.ListenUntilSilence(cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!String.IsNullOrWhiteSpace(utterance))
-                await this.TalkTo(utterance, cancellationToken).ConfigureAwait(false);
-            else
-                this.SetStatus(AiState.Idle);
+                var utterance = await speechToText
+                    .ListenUntilSilence(this.SpeechToTextOptions, cancellationToken)
+                    .ConfigureAwait(false);
+                
+                if (!String.IsNullOrWhiteSpace(utterance))
+                    await this.TalkTo(utterance, cancellationToken).ConfigureAwait(false);
+
+                continueListening = this.lastResponseExpectedReply && !String.IsNullOrWhiteSpace(utterance);
+            }
+
+            this.SetStatus(AiState.Idle);
         }
         catch (OperationCanceledException)
         {
@@ -169,7 +194,9 @@ public class AiConversationService(
             if (response.Text is { } responseText)
                 this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
-            this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud));
+            var expectsResponse = response.Text?.TrimEnd().EndsWith('?') ?? false;
+            this.lastResponseExpectedReply = expectsResponse;
+            this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud, expectsResponse));
 
             if (messageStore != null)
             {
@@ -236,6 +263,13 @@ public class AiConversationService(
 
         if (this.Acknowledgement == AiAcknowledgement.LessWordy)
             messages.Add(new ChatMessage(ChatRole.System, "Be concise and brief in your responses. Avoid unnecessary elaboration."));
+
+        if (this.Acknowledgement >= AiAcknowledgement.LessWordy)
+            messages.Add(new ChatMessage(
+                ChatRole.System,
+                "You are in a real-time voice conversation. Keep responses short and conversational. " +
+                "When you need more information or want to clarify something, end your response with a question so the conversation flows naturally."
+            ));
 
         foreach (var message in this.CurrentChatMessages)
             messages.Add(message);
