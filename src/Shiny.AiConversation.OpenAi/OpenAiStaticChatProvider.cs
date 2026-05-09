@@ -9,7 +9,7 @@ public class OpenAiStaticChatProvider : IChatClientProvider
     readonly IChatClient chatClient;
     
     
-    public OpenAiStaticChatProvider(string apiToken, string endpointUri, string modelName)
+    public OpenAiStaticChatProvider(IServiceProvider services, string apiToken, string endpointUri, string modelName)
     {
         var openAiClient = new OpenAIClient(
             new ApiKeyCredential(apiToken),
@@ -21,8 +21,10 @@ public class OpenAiStaticChatProvider : IChatClientProvider
         this.chatClient = new ChatClientBuilder(openAiClient.GetChatClient(modelName).AsIChatClient())
             .UseLogging()
             .UseFunctionInvocation()
-            .Build();
+            .Build(services);
     }
+    
+    
     public Task<IChatClient> GetChatClient(CancellationToken cancelToken = default)
         => Task.FromResult(this.chatClient);
 }

@@ -13,19 +13,19 @@ public static class OpenAiRegistrationExtensions
         string modelName
     )
     {
-        options.Services.TryAddSingleton<IChatClientProvider>(_ =>
-            new OpenAiStaticChatProvider(apiToken, endpointUri, modelName));
+        options.Services.TryAddSingleton<IChatClientProvider>(sp =>
+            new OpenAiStaticChatProvider(sp, apiToken, endpointUri, modelName));
         return options;
     }
-    
+
     public static AiConversationOptions AddStaticGithubCopilotChatClient(
         this AiConversationOptions options,
         string personalAccessToken,
         string modelName = "gpt-4o"
     )
     {
-        options.Services.TryAddSingleton<IChatClientProvider>(_ =>
-            new OpenAiStaticChatProvider(personalAccessToken, "https://api.githubcopilot.com", modelName));
+        options.Services.TryAddSingleton<IChatClientProvider>(sp =>
+            new OpenAiStaticChatProvider(sp, personalAccessToken, "https://api.githubcopilot.com", modelName));
         return options;
     }
 }
