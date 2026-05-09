@@ -16,21 +16,6 @@
     </div>
 
     <div class="settings-section">
-        <h3>System Prompt</h3>
-        <p class="settings-footer">The instruction sent to the AI with every request.</p>
-        <div class="settings-card">
-            <div class="settings-row">
-                <label class="settings-label" for="system-prompt">Prompt</label>
-                <input id="system-prompt"
-                       type="text"
-                       value="@systemPrompt"
-                       @onchange="OnSystemPromptChanged"
-                       placeholder="e.g. You are a helpful assistant." />
-            </div>
-        </div>
-    </div>
-
-    <div class="settings-section">
         <h3>Response Mode</h3>
         <p class="settings-footer">Controls how the AI acknowledges responses.</p>
         <div class="settings-card">
@@ -56,25 +41,13 @@
 </div>
 
 @code {
-    string systemPrompt = "";
     string selectedAcknowledgement = "";
     string? statusMessage;
 
     protected override void OnInitialized()
     {
         AiService.StatusChanged += OnStatusChanged;
-        systemPrompt = AiService.SystemPrompts.FirstOrDefault() ?? "";
         selectedAcknowledgement = AiService.Acknowledgement.ToString();
-    }
-
-    void OnSystemPromptChanged(ChangeEventArgs e)
-    {
-        var value = e.Value?.ToString() ?? "";
-        systemPrompt = value;
-
-        AiService.SystemPrompts.Clear();
-        if (!String.IsNullOrWhiteSpace(value))
-            AiService.SystemPrompts.Add(value);
     }
 
     void OnAcknowledgementChanged(ChangeEventArgs e)

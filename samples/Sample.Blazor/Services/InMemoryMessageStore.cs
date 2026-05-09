@@ -8,24 +8,6 @@ public class InMemoryMessageStore : IMessageStore
     readonly List<AiChatMessage> messages = [];
     readonly object sync = new();
 
-    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken)
-    {
-        var direction = chatMessage.Role == ChatRole.User
-            ? ChatMessageDirection.User
-            : ChatMessageDirection.AI;
-
-        lock (sync)
-        {
-            messages.Add(new AiChatMessage(
-                Guid.NewGuid().ToString(),
-                chatMessage.Text ?? "",
-                DateTimeOffset.UtcNow,
-                direction
-            ));
-        }
-        return Task.CompletedTask;
-    }
-
     public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
         if (response.Text is not { } text)

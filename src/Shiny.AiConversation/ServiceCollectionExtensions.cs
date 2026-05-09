@@ -29,8 +29,17 @@ public static class AiConversationServiceCollectionExtensions
         }
 
         services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<IContextProvider, DefaultContextProvider>();
         services.TryAddSingleton<IChatClientProvider, InjectedChatClientProvider>();
         services.TryAddSingleton<IAiConversationService, AiConversationService>();
         return services;
+    }
+
+
+    public static AiConversationOptions AddManualContextProvider(this AiConversationOptions options)
+    {
+        options.Services.AddSingleton<ManualContextProvider>();
+        options.Services.AddSingleton<IContextProvider>(sp => sp.GetRequiredService<ManualContextProvider>());
+        return options;
     }
 }

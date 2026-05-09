@@ -29,6 +29,7 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
         
+        builder.Services.AddSingleton<IContextProvider, SampleContextProvider>();
         builder.Services.AddShinyAiConversation(opts =>
         {
             opts.SetMessageStore<DocumentDbMessageStore>(addAiLookupTool: true);
@@ -60,13 +61,6 @@ public static class MauiProgram
         var app = builder.Build();
 
         var aiService = app.Services.GetRequiredService<IAiConversationService>();
-        aiService.SystemPrompts.Add(
-            """
-            You are a helpful assistant that provides information about the Maui AI sample app. You can answer questions
-            about the app's features, how to use it, and any other related information. If you don't know the answer to
-            a question, it's okay to say you don't know.
-            """
-        );
         aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
         aiService.OkSound = "ok.mp3";
         aiService.CancelSound = "cancel.mp3";

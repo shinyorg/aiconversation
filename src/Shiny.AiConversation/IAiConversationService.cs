@@ -105,11 +105,6 @@ public interface IAiConversationService
     AiAcknowledgement Acknowledgement { get; set; }
 
     /// <summary>
-    /// System prompts prepended to every chat request. A time-based system prompt is always included automatically.
-    /// </summary>
-    IList<string> SystemPrompts { get; set; }
-
-    /// <summary>
     /// The in-memory chat messages for the current conversation session.
     /// </summary>
     IReadOnlyList<ChatMessage> CurrentChatMessages { get; }

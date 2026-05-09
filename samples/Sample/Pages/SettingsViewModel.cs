@@ -23,18 +23,6 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
         }
     }
 
-    public string SystemPromptText
-    {
-        get => aiService.SystemPrompts.FirstOrDefault() ?? "";
-        set
-        {
-            aiService.SystemPrompts.Clear();
-            if (!String.IsNullOrWhiteSpace(value))
-                aiService.SystemPrompts.Add(value);
-            OnPropertyChanged();
-        }
-    }
-
     [ObservableProperty]
     string wakeWordText = "Hey Copilot";
 

@@ -9,13 +9,6 @@ namespace Shiny.AiConversation;
 public interface IMessageStore
 {
     /// <summary>
-    /// Persists a chat message to the store.
-    /// </summary>
-    /// <param name="chatMessage">The message to persist.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
-    Task Store(ChatMessage chatMessage, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Allows storing additional metadata about a chat response, such as tool calls or follow-up actions.
     /// </summary>
     /// <param name="userTriggeringMessage"></param>

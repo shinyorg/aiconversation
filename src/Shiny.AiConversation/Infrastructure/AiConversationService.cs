@@ -12,8 +12,7 @@ public class AiConversationService(
     ISpeechToTextService speechToText,
     ITextToSpeechService textToSpeech,
     IAudioPlayer audioPlayer,
-    TimeProvider timeProvider,
-    IEnumerable<AITool> tools,
+    IEnumerable<IContextProvider> contextProviders,
     IMessageStore? messageStore = null
 ) : IAiConversationService
 {
@@ -36,7 +35,6 @@ public class AiConversationService(
     public Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
     public AiState Status { get; private set; }
     public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
-    public IList<string> SystemPrompts { get; set; } = [];
 
     List<ChatMessage> currentMessages = [];
     public IReadOnlyList<ChatMessage> CurrentChatMessages => currentMessages.AsReadOnly();
@@ -183,23 +181,22 @@ public class AiConversationService(
             .GetChatClient(cancellationToken)
             .ConfigureAwait(false);
 
-        var chatMessages = this.BuildMessages(message);
-
+        var chatMessages = this.CurrentChatMessages.ToList();
         var userMessage = new ChatMessage(ChatRole.User, message);
-        this.currentMessages.Add(userMessage);
-
-        if (messageStore != null)
-        {
-            await messageStore.Store(
-                userMessage,
-                cancellationToken
-            ).ConfigureAwait(false);
-        }
-
+        
         var options = new ChatOptions();
-        var toolList = tools.ToList();
-        if (toolList.Count > 0)
-            options.Tools = toolList;
+        var context = contextProviders
+            .Select(x => (x.GetSystemPrompts(this.Acknowledgement), x.GetTools()))
+            .ToList();
+
+        options.Tools = new List<AITool>();
+        foreach (var cp in context)
+        {
+            var sysPrompts = cp.Item1.Select(x => new ChatMessage(ChatRole.System, x)).ToList();
+            chatMessages.AddRange(sysPrompts);
+            
+            cp.Item2.ToList().ForEach(x => options.Tools.Add(x));
+        }
 
         this.SetStatus(AiState.Responding);
         await this.PlaySoundIf(this.RespondingSound).ConfigureAwait(false);
@@ -207,6 +204,7 @@ public class AiConversationService(
         var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
         var response = await chatClient.GetResponseAsync(chatMessages, options, cancellationToken).ConfigureAwait(false);
 
+        this.currentMessages.Add(userMessage);
         if (response.Text is { } responseText)
             this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
@@ -239,6 +237,7 @@ public class AiConversationService(
 
         await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
     }
+    
 
     async Task<InterruptionResult> SpeakWithInterruptionSupport(string text, CancellationToken cancellationToken)
     {
@@ -324,38 +323,6 @@ public class AiConversationService(
             throw new InvalidOperationException("MessageStore is not set");
 
         return messageStore.Clear(beforeDate);
-    }
-
-    List<ChatMessage> BuildMessages(string userMessage)
-    {
-        var messages = new List<ChatMessage>();
-
-        // system prompts
-        var timePrompt = new ChatMessage(
-            ChatRole.System,
-            $"The current time is {timeProvider.GetUtcNow().ToLocalTime():hh:mm tt} on {timeProvider.GetUtcNow().ToLocalTime():MMMM dd, yyyy}."
-        );
-        messages.Add(timePrompt);
-
-        foreach (var prompt in this.SystemPrompts)
-            messages.Add(new ChatMessage(ChatRole.System, prompt));
-
-        if (this.Acknowledgement == AiAcknowledgement.LessWordy)
-            messages.Add(new ChatMessage(ChatRole.System, "Be concise and brief in your responses. Avoid unnecessary elaboration."));
-
-        if (this.Acknowledgement >= AiAcknowledgement.LessWordy)
-            messages.Add(new ChatMessage(
-                ChatRole.System,
-                "You are in a real-time voice conversation. Keep responses short and conversational. " +
-                "When you need more information or want to clarify something, end your response with a question so the conversation flows naturally."
-            ));
-
-        foreach (var message in this.CurrentChatMessages)
-            messages.Add(message);
-
-        // current user message
-        messages.Add(new ChatMessage(ChatRole.User, userMessage));
-        return messages;
     }
 
     void SetStatus(AiState status)

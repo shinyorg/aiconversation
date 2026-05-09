@@ -6,23 +6,6 @@ namespace Sample.Services;
 
 public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
 {
-    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken)
-    {
-        var direction = chatMessage.Role == ChatRole.User
-            ? ChatMessageDirection.User
-            : ChatMessageDirection.AI;
-
-        return store.Insert(
-            new AiChatMessage(
-                Guid.NewGuid().ToString(),
-                chatMessage.Text ?? "",
-                DateTimeOffset.UtcNow,
-                direction
-            ),
-            cancellationToken: cancellationToken
-        );
-    }
-
     public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
         if (response.Text is not { } text)

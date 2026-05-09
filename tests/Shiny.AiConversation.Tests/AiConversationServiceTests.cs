@@ -16,7 +16,7 @@ public class AiConversationServiceTests
         ITextToSpeechServiceImposter TextToSpeech,
         IAudioPlayerImposter AudioPlayer,
         IMessageStoreImposter MessageStore,
-        FakeTimeProvider TimeProvider) CreateService(bool withMessageStore = true)
+        FakeTimeProvider TimeProvider) CreateService(bool withMessageStore = true, IContextProvider[]? contextProviders = null)
     {
         var chatClientProvider = IChatClientProvider.Imposter();
         var chatClient = IChatClient.Imposter();
@@ -31,10 +31,6 @@ public class AiConversationServiceTests
             .ReturnsAsync(chatClient.Instance());
 
         messageStore
-            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
-            .Returns(Task.CompletedTask);
-
-        messageStore
             .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
@@ -42,13 +38,14 @@ public class AiConversationServiceTests
             .SpeakAsync(Arg<string>.Any(), Arg<Shiny.Speech.TextToSpeechOptions?>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
+        contextProviders ??= [new DefaultContextProvider(timeProvider, [])];
+
         var service = new AiConversationService(
             chatClientProvider.Instance(),
             speechToText.Instance(),
             textToSpeech.Instance(),
             audioPlayer.Instance(),
-            timeProvider,
-            [],
+            contextProviders,
             withMessageStore ? messageStore.Instance() : null
         );
         service.QuietWords = null; // disable interruption in tests by default
@@ -111,10 +108,6 @@ public class AiConversationServiceTests
         await service.TalkTo("Stored input", CancellationToken.None);
 
         messageStore
-            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
-            .Called(Count.Once());
-
-        messageStore
             .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
             .Called(Count.Once());
     }
@@ -126,10 +119,6 @@ public class AiConversationServiceTests
         SetupResponse(chatClient, "No store");
 
         await service.TalkTo("Test", CancellationToken.None);
-
-        messageStore
-            .Store(Arg<ChatMessage>.Any(), Arg<CancellationToken>.Any())
-            .Called(Count.Never());
 
         messageStore
             .Store(Arg<string?>.Any(), Arg<ChatResponse>.Any(), Arg<CancellationToken>.Any())
@@ -189,10 +178,20 @@ public class AiConversationServiceTests
     #region System Prompts
 
     [Test]
-    public async Task TalkTo_IncludesSystemPrompts()
+    public async Task TalkTo_IncludesSystemPromptsFromContextProvider()
     {
-        var (service, _, chatClient, _, _, _, _, _) = CreateService(withMessageStore: false);
-        service.SystemPrompts.Add("You are a test bot.");
+        var contextProvider = IContextProvider.Imposter();
+        contextProvider
+            .GetSystemPrompts(Arg<AiAcknowledgement>.Any())
+            .Returns(["You are a test bot."]);
+        contextProvider
+            .GetTools()
+            .Returns([]);
+
+        var (service, _, chatClient, _, _, _, _, _) = CreateService(
+            withMessageStore: false,
+            contextProviders: [contextProvider.Instance()]
+        );
 
         IEnumerable<ChatMessage>? capturedMessages = null;
         chatClient

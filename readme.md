@@ -10,6 +10,7 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **Wake Word Detection** — Hands-free activation with continuous keyword listening
 - **Speech-to-Text / Text-to-Speech** — Full voice loop powered by [Shiny.Speech](https://github.com/shinyorg/speech)
 - **Acknowledgement Modes** — None, AudioBlip (sound effects), LessWordy (concise TTS), or Full (complete TTS)
+- **Context Providers** — Pluggable `IContextProvider` interface for supplying system prompts and AI tools per request. A built-in `DefaultContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances.
 - **Persistent Chat History** — Pluggable `IMessageStore` for storing and querying past conversations
 - **AI History Lookup Tool** — Optional `AITool` that lets the AI search past conversations on its own
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
@@ -55,7 +56,6 @@ var app = builder.Build();
 
 // Configure after build
 var ai = app.Services.GetRequiredService<IAiConversationService>();
-ai.SystemPrompts.Add("You are a helpful assistant.");
 ai.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
 ai.OkSound = "ok.mp3";
 ai.ThinkSound = "think.mp3";
@@ -143,11 +143,6 @@ using Shiny.AiConversation;
 
 public class MyMessageStore : IMessageStore
 {
-    public Task Store(ChatMessage chatMessage, CancellationToken cancellationToken)
-    {
-        // Persist user or assistant ChatMessage
-    }
-
     public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
         // Persist the complete AI response
@@ -207,7 +202,6 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 | `ClearCurrentChat()` | Clear in-memory session messages |
 | `Status` | Current `AiState` (Idle / Listening / Thinking / Responding) |
 | `Acknowledgement` | Get/set the response delivery mode |
-| `SystemPrompts` | System prompts prepended to every request |
 | `QuietWords` | Words that stop TTS and break the conversation loop (default: cancel, quiet, shut up, stop, nevermind, never mind, hush). Other speech during TTS continues the conversation. Set to null to disable. |
 | `SpeechToTextOptions` | Options for speech-to-text (culture, silence timeout, prefer on-device) |
 | `TextToSpeechOptions` | Options for text-to-speech (culture, voice, speech rate, pitch, volume) |
