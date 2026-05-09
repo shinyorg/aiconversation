@@ -36,6 +36,7 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
           dotnet-version: '10.0.203'
+          workloads: maui
 
     - name: Build
       run: dotnet build build.slnf /restore -m -property:Configuration=Release
