@@ -45,6 +45,7 @@ public class AiConversationServiceTests
             speechToText.Instance(),
             textToSpeech.Instance(),
             audioPlayer.Instance(),
+            null,
             contextProviders,
             withMessageStore ? messageStore.Instance() : null
         );

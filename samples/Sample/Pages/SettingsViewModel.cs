@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
@@ -31,9 +32,29 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
     public string WakeWordButtonText => this.IsWakeWordActive ? "Stop Wake Word" : "Start Wake Word";
     public string CurrentStatus => aiService.Status.ToString();
 
+    public bool InterruptionEnabled
+    {
+        get => aiService.InterruptionEnabled;
+        set
+        {
+            aiService.InterruptionEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ObservableCollection<string> QuietWords { get; } = [];
+
     public void OnAppearing()
     {
         aiService.StatusChanged += this.OnStatusChanged;
+
+        QuietWords.Clear();
+        if (aiService.QuietWords != null)
+        {
+            foreach (var word in aiService.QuietWords)
+                QuietWords.Add(word);
+        }
+
         RefreshAll();
     }
 
@@ -54,6 +75,49 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
         OnPropertyChanged(nameof(WakeWordButtonText));
         OnPropertyChanged(nameof(CurrentStatus));
         OnPropertyChanged(nameof(SelectedAcknowledgementName));
+        OnPropertyChanged(nameof(InterruptionEnabled));
+    }
+
+    void SyncQuietWords()
+    {
+        aiService.QuietWords = QuietWords.ToList();
+    }
+
+    [RelayCommand]
+    async Task AddQuietWord()
+    {
+        var word = await dialogs.Prompt("Add Quiet Word", "Enter a word or phrase:");
+        if (!String.IsNullOrWhiteSpace(word))
+        {
+            QuietWords.Add(word.Trim());
+            SyncQuietWords();
+        }
+    }
+
+    [RelayCommand]
+    async Task EditQuietWord(string word)
+    {
+        var updated = await dialogs.Prompt("Edit Quiet Word", "Update the word or phrase:", word);
+        if (updated != null && !String.IsNullOrWhiteSpace(updated))
+        {
+            var index = QuietWords.IndexOf(word);
+            if (index >= 0)
+            {
+                QuietWords[index] = updated.Trim();
+                SyncQuietWords();
+            }
+        }
+    }
+
+    [RelayCommand]
+    async Task RemoveQuietWord(string word)
+    {
+        var confirm = await dialogs.Confirm($"Remove \"{word}\"?", "Are you sure?");
+        if (confirm)
+        {
+            QuietWords.Remove(word);
+            SyncQuietWords();
+        }
     }
 
     [RelayCommand]

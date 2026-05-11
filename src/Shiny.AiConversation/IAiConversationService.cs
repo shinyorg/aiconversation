@@ -76,10 +76,15 @@ public interface IAiConversationService
     string? RespondingSound { get; set; }
 
     /// <summary>
+    /// When true, the service listens for speech during text-to-speech playback to allow
+    /// the user to interrupt or redirect the AI. When false, TTS plays without listening.
+    /// </summary>
+    bool InterruptionEnabled { get; set; }
+
+    /// <summary>
     /// Words that, when spoken during AI text-to-speech playback, will immediately
     /// stop the speech and break out of the conversation loop.
     /// Any other speech during TTS will stop the speech and continue the conversation with the new utterance.
-    /// Set to null or empty to disable voice interruption entirely.
     /// </summary>
     IList<string>? QuietWords { get; set; }
 

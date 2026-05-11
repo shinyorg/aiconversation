@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using Shiny.Speech;
 
 namespace Shiny.AiConversation.Infrastructure;
@@ -12,6 +13,7 @@ public class AiConversationService(
     ISpeechToTextService speechToText,
     ITextToSpeechService textToSpeech,
     IAudioPlayer audioPlayer,
+    ILogger<AiConversationService>? logger,
     IEnumerable<IContextProvider> contextProviders,
     IMessageStore? messageStore = null
 ) : IAiConversationService
@@ -30,6 +32,7 @@ public class AiConversationService(
     public string? ErrorSound { get; set; }
     public string? ThinkSound { get; set; }
     public string? RespondingSound { get; set; }
+    public bool InterruptionEnabled { get; set; }
     public IList<string>? QuietWords { get; set; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
     public SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
     public Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
@@ -53,6 +56,7 @@ public class AiConversationService(
         await this.semaphore.WaitAsync();
         this.semaphore.Release();
 
+        logger?.LogDebug("Starting wake word detection with word: {WakeWord}", wakeWord);
         this.WakeWord = wakeWord;
         this.IsWakeWordEnabled = true;
         this.wakeWordCts = new CancellationTokenSource();
@@ -68,18 +72,22 @@ public class AiConversationService(
 
                     if (this.lastResponseExpectedReply)
                     {
-                        // AI asked a question — skip wake word, listen directly for the reply
+                        logger?.LogDebug("AI expects a reply, skipping wake word and listening directly");
                         this.lastResponseExpectedReply = false;
                         var reply = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
+                        logger?.LogDebug("Follow-up reply received: {Reply}", reply);
                         if (!String.IsNullOrWhiteSpace(reply))
                             await this.TalkTo(reply, ct);
                     }
                     else
                     {
+                        logger?.LogDebug("Listening for wake word: {WakeWord}", wakeWord);
                         var keyword = await speechToText.ListenForKeyword([wakeWord], this.SpeechToTextOptions, ct);
                         if (keyword != null)
                         {
+                            logger?.LogDebug("Wake word detected, listening for utterance");
                             var utterance = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
+                            logger?.LogDebug("Utterance received: {Utterance}", utterance);
                             if (!String.IsNullOrWhiteSpace(utterance))
                                 await this.TalkTo(utterance, ct);
                         }
@@ -88,11 +96,12 @@ public class AiConversationService(
             }
             catch (OperationCanceledException)
             {
-                // expected on stop
+                logger?.LogDebug("Wake word loop cancelled");
                 await this.PlaySoundIf(this.CancelSound);
             }
-            catch
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Wake word loop error");
                 await this.PlaySoundIf(this.ErrorSound);
             }
             finally
@@ -106,6 +115,7 @@ public class AiConversationService(
 
     public void StopWakeWord()
     {
+        logger?.LogDebug("Stopping wake word detection");
         if (this.wakeWordCts is { } cts)
         {
             cts.Cancel();
@@ -114,14 +124,13 @@ public class AiConversationService(
         }
     }
 
-
-
     public async Task ListenAndTalk(CancellationToken cancellationToken)
     {
         // TODO: this can't be called if TalkTo is running
         if (this.IsWakeWordEnabled)
             throw new InvalidOperationException("Cannot use ListenAndTalk while wake word is active.");
 
+        logger?.LogDebug("ListenAndTalk started");
         try
         {
             var continueListening = true;
@@ -131,25 +140,30 @@ public class AiConversationService(
                 this.SetStatus(AiState.Listening);
                 await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
 
+                logger?.LogDebug("Listening for speech input");
                 var utterance = await speechToText
                     .ListenUntilSilence(this.SpeechToTextOptions, cancellationToken)
                     .ConfigureAwait(false);
 
+                logger?.LogDebug("Speech input received: {Utterance}", utterance);
                 if (!String.IsNullOrWhiteSpace(utterance))
                     await this.TalkTo(utterance, cancellationToken).ConfigureAwait(false);
 
                 continueListening = this.lastResponseExpectedReply && !String.IsNullOrWhiteSpace(utterance);
+                logger?.LogDebug("Continue listening: {ContinueListening}, ExpectsReply: {ExpectsReply}", continueListening, this.lastResponseExpectedReply);
             }
 
             this.SetStatus(AiState.Idle);
         }
         catch (OperationCanceledException)
         {
+            logger?.LogDebug("ListenAndTalk cancelled");
             await this.PlaySoundIf(this.CancelSound).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.LogError(ex, "ListenAndTalk error");
             await this.PlaySoundIf(this.ErrorSound).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
             throw;
@@ -161,6 +175,7 @@ public class AiConversationService(
         CancellationToken cancellationToken
     )
     {
+        logger?.LogDebug("TalkTo called with message: {Message}", message);
         await this.semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -177,13 +192,15 @@ public class AiConversationService(
     {
         this.SetStatus(AiState.Thinking);
         await this.PlaySoundIf(this.ThinkSound).ConfigureAwait(false);
+        logger?.LogDebug("Getting chat client");
         var chatClient = await chatClientProvider
             .GetChatClient(cancellationToken)
             .ConfigureAwait(false);
 
         var chatMessages = this.CurrentChatMessages.ToList();
         var userMessage = new ChatMessage(ChatRole.User, message);
-        
+        chatMessages.Add(userMessage);
+
         var options = new ChatOptions();
         var context = contextProviders
             .Select(x => (x.GetSystemPrompts(this.Acknowledgement), x.GetTools()))
@@ -194,9 +211,16 @@ public class AiConversationService(
         {
             var sysPrompts = cp.Item1.Select(x => new ChatMessage(ChatRole.System, x)).ToList();
             chatMessages.AddRange(sysPrompts);
-            
+
             cp.Item2.ToList().ForEach(x => options.Tools.Add(x));
         }
+
+        logger?.LogDebug(
+            "Sending {MessageCount} messages to chat client with {ToolCount} tools, Acknowledgement: {Acknowledgement}",
+            chatMessages.Count,
+            options.Tools.Count,
+            this.Acknowledgement
+        );
 
         this.SetStatus(AiState.Responding);
         await this.PlaySoundIf(this.RespondingSound).ConfigureAwait(false);
@@ -204,12 +228,20 @@ public class AiConversationService(
         var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
         var response = await chatClient.GetResponseAsync(chatMessages, options, cancellationToken).ConfigureAwait(false);
 
+        logger?.LogDebug(
+            "AI response received - HasText: {HasText}, TextLength: {TextLength}, WasReadAloud: {WasReadAloud}",
+            response.Text != null,
+            response.Text?.Length ?? 0,
+            wasReadAloud
+        );
+
         this.currentMessages.Add(userMessage);
         if (response.Text is { } responseText)
             this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
         var expectsResponse = response.Text?.TrimEnd().EndsWith('?') ?? false;
         this.lastResponseExpectedReply = expectsResponse;
+        logger?.LogDebug("ExpectsResponse: {ExpectsResponse}", expectsResponse);
         this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud, expectsResponse));
 
         if (messageStore != null)
@@ -221,33 +253,43 @@ public class AiConversationService(
 
         if (wasReadAloud && response.Text is { } spokenText)
         {
+            logger?.LogDebug("Starting TTS for response ({Length} chars), InterruptionEnabled: {InterruptionEnabled}", spokenText.Length, this.InterruptionEnabled);
             var interruption = await this.SpeakWithInterruptionSupport(spokenText, cancellationToken).ConfigureAwait(false);
 
             switch (interruption.Kind)
             {
                 case InterruptionKind.QuietWord:
+                    logger?.LogDebug("TTS interrupted by quiet word: {Word}", interruption.Text);
                     this.lastResponseExpectedReply = false;
                     return;
 
                 case InterruptionKind.NewUtterance:
+                    logger?.LogDebug("TTS interrupted by new utterance: {Utterance}", interruption.Text);
                     await this.ProcessMessage(interruption.Text!, cancellationToken).ConfigureAwait(false);
                     return;
             }
         }
+        else
+        {
+            logger?.LogDebug("Skipping TTS - WasReadAloud: {WasReadAloud}, HasText: {HasText}", wasReadAloud, response.Text != null);
+        }
 
         await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
     }
-    
+
 
     async Task<InterruptionResult> SpeakWithInterruptionSupport(string text, CancellationToken cancellationToken)
     {
         var quietWords = this.QuietWords;
-        if (quietWords == null || quietWords.Count == 0)
+        if (!this.InterruptionEnabled || quietWords == null || quietWords.Count == 0)
         {
+            logger?.LogDebug("Speaking without interruption support (InterruptionEnabled: {Enabled}, QuietWords: {Count})", this.InterruptionEnabled, quietWords?.Count ?? 0);
             await textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, cancellationToken).ConfigureAwait(false);
+            logger?.LogDebug("TTS completed (no interruption path)");
             return new InterruptionResult(InterruptionKind.None);
         }
 
+        logger?.LogDebug("Speaking with interruption support, {Count} quiet words configured", quietWords.Count);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var linkedToken = linkedCts.Token;
 
@@ -255,24 +297,32 @@ public class AiConversationService(
         var listenTask = this.ListenDuringSpeech(quietWords, linkedToken);
 
         var completedTask = await Task.WhenAny(speakTask, listenTask).ConfigureAwait(false);
+        logger?.LogDebug("WhenAny completed - SpeakFinishedFirst: {SpeakFirst}", completedTask == speakTask);
 
         if (completedTask == listenTask)
         {
             var result = await listenTask.ConfigureAwait(false);
+            logger?.LogDebug("Listen task completed first with result: {Kind}, Text: {Text}", result.Kind, result.Text);
+
             if (result.Kind != InterruptionKind.None)
             {
+                logger?.LogDebug("Stopping TTS due to interruption");
                 await textToSpeech.StopAsync().ConfigureAwait(false);
                 await linkedCts.CancelAsync().ConfigureAwait(false);
                 return result;
             }
+
+            logger?.LogDebug("Listener ended with no interruption, waiting for TTS to finish");
+            await speakTask.ConfigureAwait(false);
         }
 
-        // TTS finished normally — cancel the listener
+        logger?.LogDebug("TTS finished, cancelling listener");
         await linkedCts.CancelAsync().ConfigureAwait(false);
 
         try { await listenTask.ConfigureAwait(false); }
         catch (OperationCanceledException) { }
 
+        logger?.LogDebug("SpeakWithInterruptionSupport completed normally");
         return new InterruptionResult(InterruptionKind.None);
     }
 
@@ -285,22 +335,31 @@ public class AiConversationService(
             RegexOptions.IgnoreCase
         );
 
+        logger?.LogDebug("ListenDuringSpeech started, monitoring for interruptions");
         await foreach (var result in speechToText.ContinuousRecognize(this.SpeechToTextOptions, ct).ConfigureAwait(false))
         {
             if (String.IsNullOrWhiteSpace(result.Text))
                 continue;
 
             var trimmed = result.Text.Trim();
+            logger?.LogDebug("Speech detected during TTS - Text: {Text}, IsFinal: {IsFinal}", trimmed, result.IsFinal);
 
             // Only treat as a quiet word if the entire utterance IS the quiet word
             if (quietOnlyPattern.IsMatch(trimmed))
+            {
+                logger?.LogDebug("Quiet word matched: {Word}", trimmed);
                 return new InterruptionResult(InterruptionKind.QuietWord, trimmed);
+            }
 
             // Any other speech — wait for final result before treating as new utterance
             if (result.IsFinal)
+            {
+                logger?.LogDebug("New utterance detected: {Utterance}", trimmed);
                 return new InterruptionResult(InterruptionKind.NewUtterance, trimmed);
+            }
         }
 
+        logger?.LogDebug("ContinuousRecognize stream ended with no interruption");
         return new InterruptionResult(InterruptionKind.None);
     }
 
@@ -327,10 +386,9 @@ public class AiConversationService(
 
     void SetStatus(AiState status)
     {
+        logger?.LogDebug("Status changing: {OldStatus} -> {NewStatus}", this.Status, status);
         this.Status = status;
-        var handler = this.StatusChanged;
-        if (handler != null)
-            _ = Task.Run(() => handler.Invoke(status));
+        this.StatusChanged?.Invoke(status);
     }
 
     async Task PlaySoundIf(string? soundName)
@@ -340,6 +398,7 @@ public class AiConversationService(
 
         if (this.Acknowledgement == AiAcknowledgement.AudioBlip)
         {
+            logger?.LogDebug("Playing sound: {SoundName}", soundName);
             var stream = await this.SoundResolver(soundName);
             await audioPlayer.PlayAsync(stream);
         }
