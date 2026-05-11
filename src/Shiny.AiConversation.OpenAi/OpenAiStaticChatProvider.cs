@@ -9,7 +9,13 @@ public class OpenAiStaticChatProvider : IChatClientProvider
     readonly IChatClient chatClient;
     
     
-    public OpenAiStaticChatProvider(IServiceProvider services, string apiToken, string endpointUri, string modelName)
+    public OpenAiStaticChatProvider(
+        IServiceProvider services, 
+        string apiToken, 
+        string endpointUri, 
+        string modelName,
+        Action<ChatClientBuilder>? action = null
+    )
     {
         var openAiClient = new OpenAIClient(
             new ApiKeyCredential(apiToken),
@@ -18,8 +24,10 @@ public class OpenAiStaticChatProvider : IChatClientProvider
                 Endpoint = new Uri(endpointUri)
             }
         );
-        this.chatClient = new ChatClientBuilder(openAiClient.GetChatClient(modelName).AsIChatClient())
-            .UseLogging()
+        var builder = new ChatClientBuilder(openAiClient.GetChatClient(modelName).AsIChatClient());
+        action?.Invoke(builder);
+        
+        this.chatClient = builder
             .UseFunctionInvocation()
             .Build(services);
     }
