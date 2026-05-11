@@ -177,6 +177,10 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 
     public async Task UseMicrophone()
     {
+        var access = await aiService.RequestAccess();
+        if (access != AccessState.Available)
+            return;
+
         await aiService.ListenAndTalk(CancellationToken.None);
     }
 
@@ -193,6 +197,7 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 
 | Member | Description |
 |--------|-------------|
+| `RequestAccess()` | Check speech-to-text access — returns `Available` or `Restricted` |
 | `TalkTo(string, CancellationToken)` | Send a text message to the AI |
 | `ListenAndTalk(CancellationToken)` | Capture speech via microphone and send to AI |
 | `StartWakeWord(string)` | Begin continuous wake word detection |

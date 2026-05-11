@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
 using Shiny.AiConversation;
+using Shiny.Speech;
 
 namespace Sample.Pages;
 
@@ -134,6 +135,12 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
                 if (String.IsNullOrWhiteSpace(this.WakeWordText))
                 {
                     await dialogs.Alert("Error", "Please enter a wake word.");
+                    return;
+                }
+                var access = await aiService.RequestAccess();
+                if (access != AccessState.Available)
+                {
+                    await dialogs.Alert("Error", "Speech recognition is not available on this device.");
                     return;
                 }
                 await aiService.StartWakeWord(this.WakeWordText);

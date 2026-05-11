@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
 using Shiny.AiConversation;
+using Shiny.Speech;
 
 namespace Sample.Pages;
 
@@ -26,6 +27,10 @@ public partial class AuraViewModel(IAiConversationService aiService)
     {
         if (aiService.Status == AiState.Idle)
         {
+            var access = await aiService.RequestAccess();
+            if (access != AccessState.Available)
+                return;
+
             this.listenCts = new CancellationTokenSource();
             try
             {

@@ -152,12 +152,23 @@ public interface IAiConversationService
     
     
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="beforeDate"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task ClearChatHistory(DateTimeOffset? beforeDate = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Requests access to the underlying speech-to-text service. Since all other AI services
+    /// are available by default, this effectively checks whether the conversation service can operate.
+    /// Returns <see cref="AccessState.Available"/> if speech is ready, or <see cref="AccessState.Restricted"/> otherwise.
+    /// </summary>
+    /// <returns>
+    /// <see cref="AccessState.Available"/> if speech-to-text access is granted;
+    /// <see cref="AccessState.Restricted"/> for any other speech access state.
+    /// </returns>
+    Task<AccessState> RequestAccess();
 }
 
 /// <summary>

@@ -384,6 +384,14 @@ public class AiConversationService(
         return messageStore.Clear(beforeDate);
     }
 
+    public async Task<AccessState> RequestAccess()
+    {
+        var access = await speechToText.RequestAccess().ConfigureAwait(false);
+        return access == AccessState.Available
+            ? AccessState.Available
+            : AccessState.Restricted;
+    }
+
     void SetStatus(AiState status)
     {
         logger?.LogDebug("Status changing: {OldStatus} -> {NewStatus}", this.Status, status);
