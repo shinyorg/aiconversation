@@ -39,64 +39,10 @@ public interface IAiConversationService
     void StopWakeWord();
 
     /// <summary>
-    /// Callback that resolves a sound file name to a playable stream.
-    /// Must be set for sound effects to work. In MAUI apps, use:
-    /// <c>aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);</c>
-    /// </summary>
-    Func<string, Task<Stream>>? SoundResolver { get; set; }
-
-    /// <summary>
-    /// Sound file name played when the service acknowledges a successful interaction.
-    /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
-    /// </summary>
-    string? OkSound { get; set; }
-
-    /// <summary>
-    /// Sound file name played when an operation is cancelled.
-    /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
-    /// </summary>
-    string? CancelSound { get; set; }
-
-    /// <summary>
-    /// Sound file name played when an error occurs.
-    /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
-    /// </summary>
-    string? ErrorSound { get; set; }
-
-    /// <summary>
-    /// Sound file name played when the AI begins processing a request.
-    /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
-    /// </summary>
-    string? ThinkSound { get; set; }
-
-    /// <summary>
-    /// Sound file name played when the AI begins streaming its response.
-    /// Only played when <see cref="Acknowledgement"/> is <see cref="AiAcknowledgement.AudioBlip"/> and <see cref="SoundResolver"/> is set.
-    /// </summary>
-    string? RespondingSound { get; set; }
-
-    /// <summary>
     /// When true, the service listens for speech during text-to-speech playback to allow
     /// the user to interrupt or redirect the AI. When false, TTS plays without listening.
     /// </summary>
     bool InterruptionEnabled { get; set; }
-
-    /// <summary>
-    /// Words that, when spoken during AI text-to-speech playback, will immediately
-    /// stop the speech and break out of the conversation loop.
-    /// Any other speech during TTS will stop the speech and continue the conversation with the new utterance.
-    /// </summary>
-    IList<string>? QuietWords { get; set; }
-
-    /// <summary>
-    /// Options passed to speech-to-text operations (ListenUntilSilence, ContinuousRecognize).
-    /// </summary>
-    SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
-
-    /// <summary>
-    /// Options passed to text-to-speech when speaking AI responses aloud.
-    /// </summary>
-    Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
 
     /// <summary>
     /// The current processing state of the service.

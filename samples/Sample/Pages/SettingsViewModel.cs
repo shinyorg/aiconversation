@@ -7,7 +7,7 @@ using Shiny.Speech;
 
 namespace Sample.Pages;
 
-public partial class SettingsViewModel(IAiConversationService aiService, IDialogs dialogs)
+public partial class SettingsViewModel(IAiConversationService aiService, ContextProvider contextProvider, IDialogs dialogs)
     : ObservableObject, IPageLifecycleAware
 {
     public string[] AcknowledgementOptions => Enum.GetNames<AiAcknowledgement>();
@@ -50,11 +50,8 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
         aiService.StatusChanged += this.OnStatusChanged;
 
         QuietWords.Clear();
-        if (aiService.QuietWords != null)
-        {
-            foreach (var word in aiService.QuietWords)
-                QuietWords.Add(word);
-        }
+        foreach (var word in contextProvider.GetQuietWords())
+            QuietWords.Add(word);
 
         RefreshAll();
     }
@@ -81,7 +78,7 @@ public partial class SettingsViewModel(IAiConversationService aiService, IDialog
 
     void SyncQuietWords()
     {
-        aiService.QuietWords = QuietWords.ToList();
+        contextProvider.SetQuietWords(QuietWords);
     }
 
     [RelayCommand]

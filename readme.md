@@ -10,14 +10,14 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **Wake Word Detection** — Hands-free activation with continuous keyword listening
 - **Speech-to-Text / Text-to-Speech** — Full voice loop powered by [Shiny.Speech](https://github.com/shinyorg/speech)
 - **Acknowledgement Modes** — None, AudioBlip (sound effects), LessWordy (concise TTS), or Full (complete TTS)
-- **Context Providers** — Pluggable `IContextProvider` interface for supplying system prompts and AI tools per request. A built-in `DefaultContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances.
+- **Context Providers** — Pluggable `IContextProvider` visitor pattern for populating an `AiContext` per request. Each provider receives a mutable context containing system prompts, AI tools, quiet words, speech-to-text options, and text-to-speech options. A built-in `ContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances.
 - **Persistent Chat History** — Pluggable `IMessageStore` for storing and querying past conversations
 - **AI History Lookup Tool** — Optional `AITool` that lets the AI search past conversations on its own
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
 - **Sound Effects** — Configurable sound stream factories for each state transition
 - **Conversation Continuation** — AI responses ending with a question automatically keep the microphone open for a reply
-- **Voice Interruption** — Configurable quiet words (e.g., "stop", "cancel") immediately silence TTS and break out of the conversation. Any other speech during TTS interrupts and continues the conversation with the new utterance.
-- **Speech Options** — Configurable `SpeechToTextOptions` and `TextToSpeechOptions` (culture, silence timeout, voice, speech rate, etc.)
+- **Voice Interruption** — Configurable quiet words (e.g., "stop", "cancel") via `AiContext.QuietWords` immediately silence TTS and break out of the conversation. Any other speech during TTS interrupts and continues the conversation with the new utterance.
+- **Speech Options** — Configurable `SpeechToTextOptions` and `TextToSpeechOptions` via `AiContext` (culture, silence timeout, voice, speech rate, etc.)
 
 ## TODO
 - Sessions - ability to start different AI sessions based on time passed
@@ -52,18 +52,7 @@ builder.Services.AddShinyAiConversation(opts =>
     opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true);
 });
 
-var app = builder.Build();
-
-// Configure after build
-var ai = app.Services.GetRequiredService<IAiConversationService>();
-ai.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
-ai.OkSound = "ok.mp3";
-ai.ThinkSound = "think.mp3";
-ai.RespondingSound = "responding.mp3";
-ai.ErrorSound = "error.mp3";
-ai.CancelSound = "cancel.mp3";
-
-return app;
+return builder.Build();
 ```
 
 ### 2. Chat Client Setup
@@ -207,11 +196,21 @@ public class ChatViewModel(IAiConversationService aiService) : ObservableObject
 | `ClearCurrentChat()` | Clear in-memory session messages |
 | `Status` | Current `AiState` (Idle / Listening / Thinking / Responding) |
 | `Acknowledgement` | Get/set the response delivery mode |
-| `QuietWords` | Words that stop TTS and break the conversation loop (default: cancel, quiet, shut up, stop, nevermind, never mind, hush). Other speech during TTS continues the conversation. Set to null to disable. |
-| `SpeechToTextOptions` | Options for speech-to-text (culture, silence timeout, prefer on-device) |
-| `TextToSpeechOptions` | Options for text-to-speech (culture, voice, speech rate, pitch, volume) |
 | `StatusChanged` | Event fired with the new `AiState` on any state change |
 | `AiResponded` | Event fired when the AI completes a response with `AiResponse` (Response, WasReadAloud, ExpectsResponse) |
+
+### AiContext
+
+The `AiContext` is a mutable context object populated by `IContextProvider` implementations before each AI request:
+
+| Property | Description |
+|----------|-------------|
+| `Acknowledgement` | The current acknowledgement mode (set by the service before providers run) |
+| `SystemPrompts` | System prompt strings to include in the chat request |
+| `Tools` | AI tools available for the request |
+| `QuietWords` | Words that stop TTS and break the conversation loop (default: cancel, quiet, shut up, stop, nevermind, never mind, hush) |
+| `SpeechToTextOptions` | Options for speech-to-text (culture, silence timeout, prefer on-device) |
+| `TextToSpeechOptions` | Options for text-to-speech (culture, voice, speech rate, pitch, volume) |
 
 ### Acknowledgement Modes
 

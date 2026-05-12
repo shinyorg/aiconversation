@@ -21,6 +21,19 @@ public class AiConversationOptions(IServiceCollection services)
     public bool AutoAddSpeechServices { get; set; } = true;
 
     /// <summary>
+    /// Registers an <see cref="IContextProvider"/> implementation that populates the AI context with tools and system prompts.
+    /// </summary>
+    /// <typeparam name="TContextProvider"></typeparam>
+    /// <returns></returns>
+    public AiConversationOptions AddContextProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TContextProvider>()
+        where TContextProvider : class, IContextProvider
+    {
+        services.AddSingleton<IContextProvider, TContextProvider>();
+        return this;
+    }
+    
+    
+    /// <summary>
     /// Registers the <see cref="IChatClientProvider"/> implementation used to obtain chat clients.
     /// </summary>
     /// <typeparam name="TTokenProvider">The concrete provider type.</typeparam>
@@ -51,11 +64,17 @@ public class AiConversationOptions(IServiceCollection services)
         }
         return this;
     }
+    
 
-    // TODO: initial config?
-    // public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
-    // public string? CancelSound { get; set; }
-    // public string? ErrorSound { get; set; }
-    // public string? ThinkSound { get; set; }
-    // public string? RespondingSound { get; set; }
+    /// <summary>
+    ///  
+    /// </summary>
+    /// <typeparam name="TSoundProvider"></typeparam>
+    /// <returns></returns>
+    public AiConversationOptions SetSoundProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSoundProvider>()
+        where TSoundProvider : class, ISoundProvider
+    {
+        services.AddSingleton<ISoundProvider, DefaultSoundPlayer>();
+        return this;
+    }
 }

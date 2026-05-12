@@ -12,8 +12,8 @@ public class AiConversationService(
     IChatClientProvider chatClientProvider,
     ISpeechToTextService speechToText,
     ITextToSpeechService textToSpeech,
-    IAudioPlayer audioPlayer,
     ILogger<AiConversationService>? logger,
+    ISoundProvider soundProvider,
     IEnumerable<IContextProvider> contextProviders,
     IMessageStore? messageStore = null
 ) : IAiConversationService
@@ -26,12 +26,6 @@ public class AiConversationService(
     public event Action<AiResponse>? AiResponded;
     public bool IsWakeWordEnabled { get; private set; }
     public string? WakeWord { get; private set; }
-    public Func<string, Task<Stream>>? SoundResolver { get; set; }
-    public string? OkSound { get; set; }
-    public string? CancelSound { get; set; }
-    public string? ErrorSound { get; set; }
-    public string? ThinkSound { get; set; }
-    public string? RespondingSound { get; set; }
     public bool InterruptionEnabled { get; set; }
     public IList<string>? QuietWords { get; set; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
     public SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
@@ -97,12 +91,11 @@ public class AiConversationService(
             catch (OperationCanceledException)
             {
                 logger?.LogDebug("Wake word loop cancelled");
-                await this.PlaySoundIf(this.CancelSound);
             }
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Wake word loop error");
-                await this.PlaySoundIf(this.ErrorSound);
+                await soundProvider.Play(AiAction.Error);
             }
             finally
             {
@@ -138,7 +131,7 @@ public class AiConversationService(
             {
                 this.lastResponseExpectedReply = false;
                 this.SetStatus(AiState.Listening);
-                await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
+                await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
 
                 logger?.LogDebug("Listening for speech input");
                 var utterance = await speechToText
@@ -158,13 +151,13 @@ public class AiConversationService(
         catch (OperationCanceledException)
         {
             logger?.LogDebug("ListenAndTalk cancelled");
-            await this.PlaySoundIf(this.CancelSound).ConfigureAwait(false);
+            await soundProvider.Play(AiAction.Cancel).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "ListenAndTalk error");
-            await this.PlaySoundIf(this.ErrorSound).ConfigureAwait(false);
+            await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
             throw;
         }
@@ -191,7 +184,8 @@ public class AiConversationService(
     async Task ProcessMessage(string message, CancellationToken cancellationToken)
     {
         this.SetStatus(AiState.Thinking);
-        await this.PlaySoundIf(this.ThinkSound).ConfigureAwait(false);
+        await soundProvider.Play(AiAction.Think).ConfigureAwait(false);
+        
         logger?.LogDebug("Getting chat client");
         var chatClient = await chatClientProvider
             .GetChatClient(cancellationToken)
@@ -201,19 +195,14 @@ public class AiConversationService(
         var userMessage = new ChatMessage(ChatRole.User, message);
         chatMessages.Add(userMessage);
 
+        var aiContext = new AiContext { Acknowledgement = this.Acknowledgement };
+        foreach (var cp in contextProviders)
+            await cp.Apply(aiContext).ConfigureAwait(false);
+
+        chatMessages.AddRange(aiContext.SystemPrompts.Select(x => new ChatMessage(ChatRole.System, x)));
+
         var options = new ChatOptions();
-        var context = contextProviders
-            .Select(x => (x.GetSystemPrompts(this.Acknowledgement), x.GetTools()))
-            .ToList();
-
-        options.Tools = new List<AITool>();
-        foreach (var cp in context)
-        {
-            var sysPrompts = cp.Item1.Select(x => new ChatMessage(ChatRole.System, x)).ToList();
-            chatMessages.AddRange(sysPrompts);
-
-            cp.Item2.ToList().ForEach(x => options.Tools.Add(x));
-        }
+        options.Tools = aiContext.Tools;
 
         logger?.LogDebug(
             "Sending {MessageCount} messages to chat client with {ToolCount} tools, Acknowledgement: {Acknowledgement}",
@@ -223,7 +212,7 @@ public class AiConversationService(
         );
 
         this.SetStatus(AiState.Responding);
-        await this.PlaySoundIf(this.RespondingSound).ConfigureAwait(false);
+        await soundProvider.Play(AiAction.Respond).ConfigureAwait(false);
 
         var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
         var response = await chatClient.GetResponseAsync(chatMessages, options, cancellationToken).ConfigureAwait(false);
@@ -274,7 +263,7 @@ public class AiConversationService(
             logger?.LogDebug("Skipping TTS - WasReadAloud: {WasReadAloud}, HasText: {HasText}", wasReadAloud, response.Text != null);
         }
 
-        await this.PlaySoundIf(this.OkSound).ConfigureAwait(false);
+        await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
     }
 
 
@@ -397,18 +386,5 @@ public class AiConversationService(
         logger?.LogDebug("Status changing: {OldStatus} -> {NewStatus}", this.Status, status);
         this.Status = status;
         this.StatusChanged?.Invoke(status);
-    }
-
-    async Task PlaySoundIf(string? soundName)
-    {
-        if (String.IsNullOrEmpty(soundName) || this.SoundResolver == null)
-            return;
-
-        if (this.Acknowledgement == AiAcknowledgement.AudioBlip)
-        {
-            logger?.LogDebug("Playing sound: {SoundName}", soundName);
-            var stream = await this.SoundResolver(soundName);
-            await audioPlayer.PlayAsync(stream);
-        }
     }
 }

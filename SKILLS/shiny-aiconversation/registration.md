@@ -30,24 +30,16 @@ builder.Services.AddShinyAiConversation(opts =>
 var app = builder.Build();
 ```
 
-## Post-Build Configuration
+## Context Providers
 
-Sound effects must be set **after** `builder.Build()` on the resolved IAiConversationService instance. System prompts are provided via `IContextProvider` implementations registered in DI.
+System prompts, tools, quiet words, and speech options are provided via `IContextProvider` implementations registered in DI using the visitor pattern — each provider's `Apply(AiContext)` method populates a shared `AiContext`. The `AiContext` contains:
 
-```csharp
-var aiService = app.Services.GetRequiredService<IAiConversationService>();
-
-// Sound resolver + sound file names (files must exist in Resources/Raw/)
-aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
-aiService.OkSound = "ok.mp3";
-aiService.CancelSound = "cancel.mp3";
-aiService.ErrorSound = "error.mp3";
-aiService.ThinkSound = "think.mp3";
-aiService.RespondingSound = "responding.mp3";
-
-// Voice interruption (defaults are already set, customize if needed)
-// aiService.QuietWords = ["stop", "cancel", "quiet"];  // or null to disable
-```
+- `Acknowledgement` — the current acknowledgement mode (set by the service)
+- `SystemPrompts` — system prompt strings to include in the chat request
+- `Tools` — AI tools available for the request
+- `QuietWords` — words that stop TTS and break the conversation loop (defaults provided)
+- `SpeechToTextOptions` — speech recognition options (culture, silence timeout, etc.)
+- `TextToSpeechOptions` — text-to-speech options (culture, voice, speech rate, etc.)
 
 ## AiServiceOptions
 
@@ -68,7 +60,7 @@ aiService.RespondingSound = "responding.mp3";
 
 `AddShinyAiConversation()` automatically registers (via TryAddSingleton):
 - `TimeProvider.System`
-- `DefaultContextProvider` as an `IContextProvider` — provides time-based system prompts, acknowledgement-aware voice prompts, and passes through any `AITool` instances from DI
+- `ContextProvider` as an `IContextProvider` — uses the visitor pattern (`Apply(AiContext)`) to add time-based system prompts, acknowledgement-aware voice prompts, and passes through any `AITool` instances from DI. The `AiContext` also carries `QuietWords`, `SpeechToTextOptions`, and `TextToSpeechOptions` that providers can modify.
 - `InjectedChatClientProvider` as the default `IChatClientProvider` — resolves `IChatClient` from DI. If no `IChatClient` is registered and no custom provider is set, an `InvalidOperationException` is thrown at runtime.
 - Speech services via `AddSpeechServices()` (when `AutoAddSpeechServices` is true, the default) — includes ISpeechToTextService, ITextToSpeechService, and IAudioPlayer from Shiny.Speech
 

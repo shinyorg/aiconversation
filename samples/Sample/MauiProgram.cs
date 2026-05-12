@@ -54,20 +54,10 @@ public static class MauiProgram
         // });
 
 
-
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
         var app = builder.Build();
-
-        var aiService = app.Services.GetRequiredService<IAiConversationService>();
-        aiService.SoundResolver = name => FileSystem.OpenAppPackageFileAsync(name);
-        aiService.OkSound = "ok.mp3";
-        aiService.CancelSound = "cancel.mp3";
-        aiService.ErrorSound = "error.mp3";
-        aiService.ThinkSound = "think.mp3";
-        aiService.RespondingSound = "responding.mp3";
-
         return app;
     }
 }

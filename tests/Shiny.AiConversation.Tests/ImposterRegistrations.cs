@@ -10,3 +10,4 @@ using Shiny.Speech;
 [assembly: GenerateImposter(typeof(IAudioPlayer))]
 [assembly: GenerateImposter(typeof(IChatClient))]
 [assembly: GenerateImposter(typeof(IContextProvider))]
+[assembly: GenerateImposter(typeof(ISoundProvider))]

@@ -24,6 +24,7 @@ public class AiConversationServiceTests
         var textToSpeech = ITextToSpeechService.Imposter();
         var audioPlayer = IAudioPlayer.Imposter();
         var messageStore = IMessageStore.Imposter();
+        var soundProvider = ISoundProvider.Imposter();
         var timeProvider = new FakeTimeProvider(FixedTime);
 
         chatClientProvider
@@ -38,14 +39,18 @@ public class AiConversationServiceTests
             .SpeakAsync(Arg<string>.Any(), Arg<Shiny.Speech.TextToSpeechOptions?>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
-        contextProviders ??= [new DefaultContextProvider(timeProvider, [])];
+        soundProvider
+            .Play(Arg<AiAction>.Any())
+            .Returns(Task.CompletedTask);
+
+        contextProviders ??= [new ContextProvider(timeProvider, [])];
 
         var service = new AiConversationService(
             chatClientProvider.Instance(),
             speechToText.Instance(),
             textToSpeech.Instance(),
-            audioPlayer.Instance(),
             null,
+            soundProvider.Instance(),
             contextProviders,
             withMessageStore ? messageStore.Instance() : null
         );
@@ -183,11 +188,12 @@ public class AiConversationServiceTests
     {
         var contextProvider = IContextProvider.Imposter();
         contextProvider
-            .GetSystemPrompts(Arg<AiAcknowledgement>.Any())
-            .Returns(["You are a test bot."]);
-        contextProvider
-            .GetTools()
-            .Returns([]);
+            .Apply(Arg<AiContext>.Any())
+            .Returns(ctx =>
+            {
+                ctx.SystemPrompts.Add("You are a test bot.");
+                return Task.CompletedTask;
+            });
 
         var (service, _, chatClient, _, _, _, _, _) = CreateService(
             withMessageStore: false,

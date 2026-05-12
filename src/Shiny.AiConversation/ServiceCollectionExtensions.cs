@@ -19,6 +19,9 @@ public static class AiConversationServiceCollectionExtensions
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddShinyAiConversation(this IServiceCollection services, Action<AiConversationOptions> configure)
     {
+        services.TryAddSingleton<ContextProvider>();
+        services.AddSingleton<IContextProvider>(sp => sp.GetRequiredService<ContextProvider>());
+
         var options = new AiConversationOptions(services);
         configure.Invoke(options);
         
@@ -29,17 +32,9 @@ public static class AiConversationServiceCollectionExtensions
         }
 
         services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton<IContextProvider, DefaultContextProvider>();
         services.TryAddSingleton<IChatClientProvider, InjectedChatClientProvider>();
         services.TryAddSingleton<IAiConversationService, AiConversationService>();
+        
         return services;
-    }
-
-
-    public static AiConversationOptions AddManualContextProvider(this AiConversationOptions options)
-    {
-        options.Services.AddSingleton<ManualContextProvider>();
-        options.Services.AddSingleton<IContextProvider>(sp => sp.GetRequiredService<ManualContextProvider>());
-        return options;
     }
 }
