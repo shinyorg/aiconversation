@@ -74,11 +74,11 @@ The library provides:
 - **IAiConversationService**: Central orchestrator for AI interactions — manages access checking, state (Idle/Listening/Thinking/Responding), wake word detection, speech-to-text capture, chat client communication, text-to-speech response, acknowledgement modes, sound effects, persistent chat history, conversation continuation (auto-listens when AI asks a question), and voice interruption (quiet words to stop TTS, or speak over the AI to redirect the conversation)
 - **IChatClientProvider**: Abstraction for obtaining an `IChatClient` (from Microsoft.Extensions.AI) — a default implementation (`InjectedChatClientProvider`) resolves `IChatClient` from DI; custom implementations handle authentication, token management, and client construction
 - **IMessageStore**: Abstraction for persisting and querying chat message history — implementations provide storage (SQLite, file system, cloud, etc.)
-- **ChatLookupAITool**: Optional AI tool that allows the AI to search past conversations via IMessageStore, registered as an `AITool` for Microsoft.Extensions.AI tool calling
+- **ChatLookupAITool**: AI tool that allows the AI to search past conversations via IMessageStore — automatically added by `ContextProvider` when an `IMessageStore` is registered
 - **AiChatMessage**: Record representing a persisted chat message with Id, Message, Timestamp, and Direction (User/AI)
 - **IContextProvider**: Visitor-pattern abstraction for populating an `AiContext` per request. Each provider's `Apply(AiContext)` method receives a mutable context and adds its contributions. The `ContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances. Implement custom providers to add domain-specific system prompts, tools, or override speech settings.
 - **AiContext**: Mutable context object passed to `IContextProvider.Apply()` — contains `Acknowledgement`, `SystemPrompts`, `Tools`, `QuietWords`, `SpeechToTextOptions`, and `TextToSpeechOptions` that providers populate or modify
-- **AiServiceOptions**: Fluent configuration for DI registration — sets chat client provider, message store, and optional AI tools
+- **AiConversationOptions**: Fluent configuration for DI registration — sets chat client provider, message store, sound provider, and additional context providers via `AddContextProvider<T>()`
 
 **Built-in Provider Packages**:
 - **Shiny.AiConversation.OpenAi** (`OpenAiStaticChatProvider`): Static OpenAI-compatible provider. Accepts API key, endpoint URI, and model name. Works with OpenAI, Azure OpenAI, Ollama, or any OpenAI-compatible API. Register with `opts.AddStaticOpenAIChatClient(apiToken, endpointUri, modelName)`.
@@ -128,13 +128,15 @@ builder.Services.AddShinyAiConversation(opts =>
     // OR GitHub Copilot (MAUI only — self-contained auth with SecureStorage)
     opts.AddGithubCopilotChatClient();
 
-    opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true); // optional
+    opts.SetMessageStore<MyMessageStore>(); // optional — ChatLookupAITool added automatically
 });
 ```
 
 - Built-in providers: `AddStaticOpenAIChatClient()` for OpenAI-compatible APIs, `AddGithubCopilotChatClient()` for GitHub Copilot on MAUI
 - `SetChatClientProvider<T>()` is for custom providers — if not set and no built-in provider is used, the default `InjectedChatClientProvider` resolves `IChatClient` from DI
-- `SetMessageStore<T>()` is **optional** — enables persistent history and optionally registers the ChatLookupAITool
+- `SetMessageStore<T>()` is **optional** — enables persistent history; the `ContextProvider` automatically adds `ChatLookupAITool` when a store is present
+- `AddContextProvider<T>()` registers additional `IContextProvider` implementations
+- `SetSoundProvider<T>()` registers a custom `ISoundProvider` implementation
 - System prompts, tools, quiet words, and speech options are provided via `IContextProvider` implementations registered in DI (a `ContextProvider` is auto-registered)
 
 ### 2. Chat Client Setup
@@ -181,7 +183,10 @@ public class MyContextProvider : IContextProvider
 }
 
 // Register in DI — multiple providers are supported, executed in sequence
-builder.Services.AddSingleton<IContextProvider, MyContextProvider>();
+builder.Services.AddShinyAiConversation(opts =>
+{
+    opts.AddContextProvider<MyContextProvider>();
+});
 ```
 
 ### 4. Implementing IMessageStore

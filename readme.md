@@ -12,7 +12,7 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **Acknowledgement Modes** — None, AudioBlip (sound effects), LessWordy (concise TTS), or Full (complete TTS)
 - **Context Providers** — Pluggable `IContextProvider` visitor pattern for populating an `AiContext` per request. Each provider receives a mutable context containing system prompts, AI tools, quiet words, speech-to-text options, and text-to-speech options. A built-in `ContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances.
 - **Persistent Chat History** — Pluggable `IMessageStore` for storing and querying past conversations
-- **AI History Lookup Tool** — Optional `AITool` that lets the AI search past conversations on its own
+- **AI History Lookup Tool** — Automatically available when an `IMessageStore` is registered, lets the AI search past conversations on its own
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
 - **Sound Effects** — Configurable sound stream factories for each state transition
 - **Conversation Continuation** — AI responses ending with a question automatically keep the microphone open for a reply
@@ -48,8 +48,8 @@ builder.Services.AddChatClient(new OpenAIClient("your-api-key").GetChatClient("g
 
 builder.Services.AddShinyAiConversation(opts =>
 {
-    // Optional — enable persistent history + AI lookup tool
-    opts.SetMessageStore<MyMessageStore>(addAiLookupTool: true);
+    // Optional — enable persistent history (ChatLookupAITool is added automatically)
+    opts.SetMessageStore<MyMessageStore>();
 });
 
 return builder.Build();
@@ -223,7 +223,7 @@ The `AiContext` is a mutable context object populated by `IContextProvider` impl
 
 ### ChatLookupAITool
 
-When `SetMessageStore<T>(addAiLookupTool: true)` is used, the library registers an `AITool` named `lookup_chat_history`. This allows the AI to autonomously search past conversations when the user asks about previous discussions — no extra code required.
+When an `IMessageStore` is registered via `SetMessageStore<T>()`, the built-in `ContextProvider` automatically adds a `ChatLookupAITool` (`lookup_chat_history`) to every request. This allows the AI to autonomously search past conversations when the user asks about previous discussions — no extra code required.
 
 ## Architecture
 

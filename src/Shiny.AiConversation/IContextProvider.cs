@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Shiny.AiConversation.Infrastructure;
 using Shiny.Speech;
 
 namespace Shiny.AiConversation;
@@ -41,7 +42,8 @@ public interface IContextProvider
 
 public sealed class ContextProvider(
     TimeProvider timeProvider,
-    IEnumerable<AITool> tools
+    IEnumerable<AITool> tools,
+    IMessageStore? messageStore = null
 ) : IContextProvider
 {
     readonly Lock sync = new();
@@ -125,6 +127,9 @@ public sealed class ContextProvider(
 
         context.SystemPrompts.Add($"The current time is {timeProvider.GetUtcNow().ToLocalTime():hh:mm tt} on {timeProvider.GetUtcNow().ToLocalTime():MMMM dd, yyyy}.");
         context.Tools.AddRange(tools);
+        
+        if (messageStore != null)
+            context.Tools.Add(new ChatLookupAITool(messageStore).AsTool());
 
         lock (this.sync)
         {

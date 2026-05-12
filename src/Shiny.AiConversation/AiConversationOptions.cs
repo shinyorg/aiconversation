@@ -50,18 +50,11 @@ public class AiConversationOptions(IServiceCollection services)
     /// Optionally registers a <see cref="ChatLookupAITool"/> that allows the AI to search past conversations.
     /// </summary>
     /// <typeparam name="TMessageStore">The concrete message store type.</typeparam>
-    /// <param name="addAiLookupTool">When true, registers an AI tool for searching chat history.</param>
     /// <returns>This options instance for chaining.</returns>
-    public AiConversationOptions SetMessageStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TMessageStore>(bool addAiLookupTool = true)
+    public AiConversationOptions SetMessageStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TMessageStore>()
         where TMessageStore : class, IMessageStore
     {
         services.AddSingleton<IMessageStore, TMessageStore>();
-
-        if (addAiLookupTool)
-        {
-            services.AddSingleton<ChatLookupAITool>();
-            services.AddSingleton<AITool>(sp => sp.GetRequiredService<ChatLookupAITool>().AsTool());
-        }
         return this;
     }
     
