@@ -43,6 +43,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\..\Shiny.AiConversation.MessageStores.SqliteDocDb\Shiny.AiConversation.MessageStores.SqliteDocDb.csproj" />
 		<ProjectReference Include="..\..\src\Shiny.AiConversation\Shiny.AiConversation.csproj" />
 		<ProjectReference Include="..\..\src\Shiny.AiConversation.Maui.GithubCopilot\Shiny.AiConversation.Maui.GithubCopilot.csproj" />
 	</ItemGroup>

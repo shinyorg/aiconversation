@@ -32,16 +32,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<IContextProvider, SampleContextProvider>();
         builder.Services.AddShinyAiConversation(opts =>
         {
-            opts.SetMessageStore<DocumentDbMessageStore>();
             opts.AddGithubCopilotChatClient();
-        });
-        
-        builder.Services.AddDocumentStore(opts =>
-        {
+            
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "sample_ai.db");
-            opts.DatabaseProvider = new SqliteDatabaseProvider($"Data Source={dbPath}");
-            opts.JsonSerializerOptions = AppJsonContext.Default.Options;
-            opts.UseReflectionFallback = false;
+            opts.SetSqliteDocDbMessageStore(dbPath);
         });
 
         // builder.Services.AddAzureSpeech("your-subscription-key", "eastus");
@@ -61,7 +55,3 @@ public static class MauiProgram
         return app;
     }
 }
-
-
-[JsonSerializable(typeof(AiChatMessage))]
-public partial class AppJsonContext : JsonSerializerContext;
