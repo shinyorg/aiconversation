@@ -32,7 +32,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IContextProvider, SampleContextProvider>();
         builder.Services.AddShinyAiConversation(opts =>
         {
-            opts.SetMessageStore<DocumentDbMessageStore>(addAiLookupTool: true);
+            opts.SetMessageStore<DocumentDbMessageStore>();
             opts.AddGithubCopilotChatClient();
         });
         
