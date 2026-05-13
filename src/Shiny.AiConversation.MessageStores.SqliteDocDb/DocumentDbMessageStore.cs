@@ -18,13 +18,14 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
                 DateTimeOffset.UtcNow,
                 ChatMessageDirection.AI
             ),
-            cancellationToken: cancellationToken
+            AppJsonContext.Default.AiChatMessage,
+            cancellationToken
         );
     }
 
     public Task Clear(DateTimeOffset? beforeDate = null)
     {
-        var query = store.Query<AiChatMessage>();
+        var query = store.Query(AppJsonContext.Default.AiChatMessage);
 
         if (beforeDate.HasValue)
             query = query.Where(x => x.Timestamp <= beforeDate.Value);
@@ -40,7 +41,7 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
         CancellationToken cancellationToken = default
     )
     {
-        var query = store.Query<AiChatMessage>()
+        var query = store.Query(AppJsonContext.Default.AiChatMessage)
             .OrderBy(x => x.Timestamp);
 
         if (!String.IsNullOrWhiteSpace(messageContains))
