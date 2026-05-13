@@ -1,11 +1,10 @@
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
 using Shiny.DocumentDb;
 
 namespace Shiny.AiConversation.MessageStores.SqliteDocDb;
 
 
-public class DocumentDbMessageStore([FromKeyedServices(DocDbMessageStoreExtensions.SqliteDiRegKey)] IDocumentStore store) : IMessageStore
+public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
 {
     public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {

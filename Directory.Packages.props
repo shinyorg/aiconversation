@@ -12,8 +12,8 @@
         <PackageVersion Include="Shiny.DocumentDb.Sqlite" Version="5.0.0"/>
         <PackageVersion Include="Shiny.Maui.Controls" Version="1.0.1-beta-0071"/>
         <PackageVersion Include="Shiny.Maui.Shell" Version="6.0.3"/>
-        <PackageVersion Include="Shiny.Speech.Azure" Version="2.0.0-beta-0002"/>
-        <PackageVersion Include="Shiny.Speech.ElevenLabs" Version="2.0.0-beta-0002"/>
+        <PackageVersion Include="Shiny.Speech.Azure" Version="2.0.0"/>
+        <PackageVersion Include="Shiny.Speech.ElevenLabs" Version="2.0.0"/>
     </ItemGroup>
     <ItemGroup>
         <PackageVersion Include="Microsoft.Extensions.AI" Version="10.6.0"/>
