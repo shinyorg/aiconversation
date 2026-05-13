@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Threading.Channels;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Shiny.Speech;
@@ -6,7 +7,7 @@ using Shiny.Speech;
 namespace Shiny.AiConversation.Infrastructure;
 
 enum InterruptionKind { None, QuietWord, NewUtterance }
-record InterruptionResult(InterruptionKind Kind, string? Text = null);
+record InterruptionResult(InterruptionKind Kind, string? Text = null, float? Confidence = null);
 
 public class AiConversationService(
     IChatClientProvider chatClientProvider,
@@ -16,15 +17,21 @@ public class AiConversationService(
     ISoundProvider soundProvider,
     IEnumerable<IContextProvider> contextProviders,
     IMessageStore? messageStore = null
-) : IAiConversationService
+) : IAiConversationService, IAsyncDisposable
 {
     readonly SemaphoreSlim semaphore = new(1, 1);
-    CancellationTokenSource? wakeWordCts;
+    readonly object sessionLock = new();
+    SessionMode sessionMode = SessionMode.None;
+    CancellationTokenSource? sessionCts;
+    Channel<SpeechRecognitionResult>? recognitionChannel;
+    Channel<string>? keywordChannel;
+    bool sessionStarted;
     bool lastResponseExpectedReply;
 
     public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
-    public bool IsWakeWordEnabled { get; private set; }
+    public event Action<SpeechRecognitionResult>? SpeechResultReceived;
+    public bool IsWakeWordEnabled => this.sessionMode == SessionMode.WakeWord;
     public string? WakeWord { get; private set; }
     public bool InterruptionEnabled { get; set; }
     public IList<string>? QuietWords { get; set; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
@@ -32,6 +39,7 @@ public class AiConversationService(
     public Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
     public AiState Status { get; private set; }
     public AiAcknowledgement Acknowledgement { get; set; } = AiAcknowledgement.Full;
+    public float InterruptionMinConfidence { get; set; } = 0.5f;
 
     List<ChatMessage> currentMessages = [];
     public IReadOnlyList<ChatMessage> CurrentChatMessages => currentMessages.AsReadOnly();
@@ -43,104 +51,54 @@ public class AiConversationService(
 
     public async Task StartWakeWord(string wakeWord)
     {
-        if (this.IsWakeWordEnabled)
-            throw new InvalidOperationException("Wake word is already active.");
-
-        // TODO: this can't be called if TalkTo is running
-        await this.semaphore.WaitAsync();
-        this.semaphore.Release();
+        if (this.sessionMode != SessionMode.None)
+            throw new InvalidOperationException("A conversation session is already active.");
 
         logger?.LogDebug("Starting wake word detection with word: {WakeWord}", wakeWord);
         this.WakeWord = wakeWord;
-        this.IsWakeWordEnabled = true;
-        this.wakeWordCts = new CancellationTokenSource();
-        var ct = this.wakeWordCts.Token;
+        await this.StartSessionAsync(SessionMode.WakeWord, [wakeWord]).ConfigureAwait(false);
+        var ct = this.sessionCts!.Token;
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                while (!ct.IsCancellationRequested)
-                {
-                    this.SetStatus(AiState.Listening);
-
-                    if (this.lastResponseExpectedReply)
-                    {
-                        logger?.LogDebug("AI expects a reply, skipping wake word and listening directly");
-                        this.lastResponseExpectedReply = false;
-                        var reply = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
-                        logger?.LogDebug("Follow-up reply received: {Reply}", reply);
-                        if (!String.IsNullOrWhiteSpace(reply))
-                            await this.TalkTo(reply, ct);
-                    }
-                    else
-                    {
-                        logger?.LogDebug("Listening for wake word: {WakeWord}", wakeWord);
-                        var keyword = await speechToText.ListenForKeyword([wakeWord], this.SpeechToTextOptions, ct);
-                        if (keyword != null)
-                        {
-                            logger?.LogDebug("Wake word detected, listening for utterance");
-                            var utterance = await speechToText.ListenUntilSilence(this.SpeechToTextOptions, ct);
-                            logger?.LogDebug("Utterance received: {Utterance}", utterance);
-                            if (!String.IsNullOrWhiteSpace(utterance))
-                                await this.TalkTo(utterance, ct);
-                        }
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                logger?.LogDebug("Wake word loop cancelled");
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Wake word loop error");
-                await soundProvider.Play(AiAction.Error);
-            }
-            finally
-            {
-                this.IsWakeWordEnabled = false;
-                this.WakeWord = null;
-                this.SetStatus(AiState.Idle);
-            }
-        }, ct);
+        _ = Task.Run(() => this.RunWakeWordLoop(wakeWord, ct), ct);
     }
 
-    public void StopWakeWord()
+    public Task StopWakeWord()
     {
         logger?.LogDebug("Stopping wake word detection");
-        if (this.wakeWordCts is { } cts)
-        {
-            cts.Cancel();
-            cts.Dispose();
-            this.wakeWordCts = null;
-        }
+        if (this.sessionMode != SessionMode.WakeWord)
+            return Task.CompletedTask;
+
+        return this.EndSessionAsync();
     }
 
     public async Task ListenAndTalk(CancellationToken cancellationToken)
     {
-        // TODO: this can't be called if TalkTo is running
-        if (this.IsWakeWordEnabled)
+        if (this.sessionMode == SessionMode.WakeWord)
             throw new InvalidOperationException("Cannot use ListenAndTalk while wake word is active.");
 
+        if (this.sessionMode != SessionMode.None)
+            throw new InvalidOperationException("A conversation session is already active.");
+
         logger?.LogDebug("ListenAndTalk started");
+        await this.StartSessionAsync(SessionMode.PushToTalk, null).ConfigureAwait(false);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, this.sessionCts!.Token);
+        var ct = linkedCts.Token;
+
         try
         {
             var continueListening = true;
-            while (continueListening && !cancellationToken.IsCancellationRequested)
+            while (continueListening && !ct.IsCancellationRequested)
             {
                 this.lastResponseExpectedReply = false;
                 this.SetStatus(AiState.Listening);
                 await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
 
-                logger?.LogDebug("Listening for speech input");
-                var utterance = await speechToText
-                    .ListenUntilSilence(this.SpeechToTextOptions, cancellationToken)
-                    .ConfigureAwait(false);
+                logger?.LogDebug("Listening for utterance");
+                var utterance = await this.ReadNextUtteranceAsync(ct).ConfigureAwait(false);
+                logger?.LogDebug("Utterance received: {Utterance}", utterance);
 
-                logger?.LogDebug("Speech input received: {Utterance}", utterance);
                 if (!String.IsNullOrWhiteSpace(utterance))
-                    await this.TalkTo(utterance, cancellationToken).ConfigureAwait(false);
+                    await this.TalkTo(utterance, ct).ConfigureAwait(false);
 
                 continueListening = this.lastResponseExpectedReply && !String.IsNullOrWhiteSpace(utterance);
                 logger?.LogDebug("Continue listening: {ContinueListening}, ExpectsReply: {ExpectsReply}", continueListening, this.lastResponseExpectedReply);
@@ -161,12 +119,13 @@ public class AiConversationService(
             this.SetStatus(AiState.Idle);
             throw;
         }
+        finally
+        {
+            await this.EndSessionAsync().ConfigureAwait(false);
+        }
     }
 
-    public async Task TalkTo(
-        string message,
-        CancellationToken cancellationToken
-    )
+    public async Task TalkTo(string message, CancellationToken cancellationToken)
     {
         logger?.LogDebug("TalkTo called with message: {Message}", message);
         await this.semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -181,11 +140,54 @@ public class AiConversationService(
         }
     }
 
+    async Task RunWakeWordLoop(string wakeWord, CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                this.SetStatus(AiState.Listening);
+
+                string? utterance;
+                if (this.lastResponseExpectedReply)
+                {
+                    logger?.LogDebug("AI expects a reply, capturing follow-up utterance directly");
+                    this.lastResponseExpectedReply = false;
+                    utterance = await this.ReadNextUtteranceAsync(ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    logger?.LogDebug("Waiting for wake word: {WakeWord}", wakeWord);
+                    await this.WaitForKeywordAsync(ct).ConfigureAwait(false);
+                    logger?.LogDebug("Wake word detected, capturing utterance");
+                    utterance = await this.ReadNextUtteranceAsync(ct).ConfigureAwait(false);
+                }
+
+                logger?.LogDebug("Utterance received: {Utterance}", utterance);
+                if (!String.IsNullOrWhiteSpace(utterance))
+                    await this.TalkTo(utterance!, ct).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Wake word loop cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Wake word loop error");
+            await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
+        }
+        finally
+        {
+            this.SetStatus(AiState.Idle);
+        }
+    }
+
     async Task ProcessMessage(string message, CancellationToken cancellationToken)
     {
         this.SetStatus(AiState.Thinking);
         await soundProvider.Play(AiAction.Think).ConfigureAwait(false);
-        
+
         logger?.LogDebug("Getting chat client");
         var chatClient = await chatClientProvider
             .GetChatClient(cancellationToken)
@@ -266,13 +268,17 @@ public class AiConversationService(
         await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
     }
 
-
     async Task<InterruptionResult> SpeakWithInterruptionSupport(string text, CancellationToken cancellationToken)
     {
         var quietWords = this.QuietWords;
-        if (!this.InterruptionEnabled || quietWords == null || quietWords.Count == 0)
+        if (!this.InterruptionEnabled || quietWords == null || quietWords.Count == 0 || !this.sessionStarted)
         {
-            logger?.LogDebug("Speaking without interruption support (InterruptionEnabled: {Enabled}, QuietWords: {Count})", this.InterruptionEnabled, quietWords?.Count ?? 0);
+            logger?.LogDebug(
+                "Speaking without interruption support (InterruptionEnabled: {Enabled}, QuietWords: {Count}, SessionActive: {Active})",
+                this.InterruptionEnabled,
+                quietWords?.Count ?? 0,
+                this.sessionStarted
+            );
             await textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, cancellationToken).ConfigureAwait(false);
             logger?.LogDebug("TTS completed (no interruption path)");
             return new InterruptionResult(InterruptionKind.None);
@@ -318,37 +324,59 @@ public class AiConversationService(
     async Task<InterruptionResult> ListenDuringSpeech(IList<string> quietWords, CancellationToken ct)
     {
         // Match text that is ONLY a quiet word/phrase (with optional surrounding whitespace/punctuation)
-        // e.g., "stop" or "shut up" but NOT "cancel this appointment"
+        // e.g. "stop" or "shut up" but NOT "cancel this appointment"
         var quietOnlyPattern = new Regex(
             @"^\s*(" + String.Join("|", quietWords.Select(Regex.Escape)) + @")\s*[.!]?\s*$",
             RegexOptions.IgnoreCase
         );
 
-        logger?.LogDebug("ListenDuringSpeech started, monitoring for interruptions");
-        await foreach (var result in speechToText.ContinuousRecognize(this.SpeechToTextOptions, ct).ConfigureAwait(false))
+        logger?.LogDebug("ListenDuringSpeech started, monitoring recognition stream");
+
+        // Drain anything that arrived before TTS started to avoid stale results.
+        this.DrainRecognitionChannel();
+
+        var channel = this.recognitionChannel
+            ?? throw new InvalidOperationException("Cannot listen for interruptions without an active speech session.");
+
+        await foreach (var result in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
         {
             if (String.IsNullOrWhiteSpace(result.Text))
                 continue;
 
-            var trimmed = result.Text.Trim();
-            logger?.LogDebug("Speech detected during TTS - Text: {Text}, IsFinal: {IsFinal}", trimmed, result.IsFinal);
+            // Filter results captured while TTS is actively speaking unless confidence is high enough to
+            // overcome likely echo from the synthesized voice.
+            if (textToSpeech.IsSpeaking && result.Confidence is { } conf && conf < this.InterruptionMinConfidence)
+            {
+                logger?.LogDebug(
+                    "Ignoring low-confidence result during TTS - Text: {Text}, Confidence: {Confidence}",
+                    result.Text,
+                    conf
+                );
+                continue;
+            }
 
-            // Only treat as a quiet word if the entire utterance IS the quiet word
+            var trimmed = result.Text.Trim();
+            logger?.LogDebug(
+                "Speech detected during TTS - Text: {Text}, IsFinal: {IsFinal}, Confidence: {Confidence}",
+                trimmed,
+                result.IsFinal,
+                result.Confidence
+            );
+
             if (quietOnlyPattern.IsMatch(trimmed))
             {
                 logger?.LogDebug("Quiet word matched: {Word}", trimmed);
-                return new InterruptionResult(InterruptionKind.QuietWord, trimmed);
+                return new InterruptionResult(InterruptionKind.QuietWord, trimmed, result.Confidence);
             }
 
-            // Any other speech — wait for final result before treating as new utterance
             if (result.IsFinal)
             {
                 logger?.LogDebug("New utterance detected: {Utterance}", trimmed);
-                return new InterruptionResult(InterruptionKind.NewUtterance, trimmed);
+                return new InterruptionResult(InterruptionKind.NewUtterance, trimmed, result.Confidence);
             }
         }
 
-        logger?.LogDebug("ContinuousRecognize stream ended with no interruption");
+        logger?.LogDebug("Recognition channel completed with no interruption");
         return new InterruptionResult(InterruptionKind.None);
     }
 
@@ -381,10 +409,191 @@ public class AiConversationService(
             : AccessState.Restricted;
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await this.EndSessionAsync().ConfigureAwait(false);
+        this.semaphore.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     void SetStatus(AiState status)
     {
         logger?.LogDebug("Status changing: {OldStatus} -> {NewStatus}", this.Status, status);
         this.Status = status;
         this.StatusChanged?.Invoke(status);
+    }
+
+    enum SessionMode { None, WakeWord, PushToTalk }
+
+    async Task StartSessionAsync(SessionMode mode, string[]? keywords)
+    {
+        Channel<SpeechRecognitionResult> resultChannel;
+        Channel<string> kwChannel;
+
+        lock (this.sessionLock)
+        {
+            if (this.sessionMode != SessionMode.None)
+                throw new InvalidOperationException("A conversation session is already active.");
+
+            this.sessionMode = mode;
+            this.sessionCts = new CancellationTokenSource();
+            resultChannel = Channel.CreateUnbounded<SpeechRecognitionResult>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = true
+            });
+            kwChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+            {
+                SingleReader = true,
+                SingleWriter = true
+            });
+            this.recognitionChannel = resultChannel;
+            this.keywordChannel = kwChannel;
+        }
+
+        speechToText.ResultReceived += this.OnSpeechResult;
+        speechToText.KeywordHeard += this.OnKeywordHeard;
+        speechToText.Error += this.OnSpeechError;
+
+        var options = this.SpeechToTextOptions ?? new SpeechRecognitionOptions();
+        if (keywords is { Length: > 0 })
+            options = options with { Keywords = keywords };
+
+        try
+        {
+            await speechToText.Start(options).ConfigureAwait(false);
+            this.sessionStarted = true;
+            logger?.LogDebug("Speech session started (mode: {Mode}, keywords: {Keywords})", mode, keywords?.Length ?? 0);
+        }
+        catch
+        {
+            speechToText.ResultReceived -= this.OnSpeechResult;
+            speechToText.KeywordHeard -= this.OnKeywordHeard;
+            speechToText.Error -= this.OnSpeechError;
+            lock (this.sessionLock)
+            {
+                this.sessionMode = SessionMode.None;
+                this.sessionCts?.Dispose();
+                this.sessionCts = null;
+                this.recognitionChannel = null;
+                this.keywordChannel = null;
+            }
+            throw;
+        }
+    }
+
+    async Task EndSessionAsync()
+    {
+        CancellationTokenSource? cts;
+        Channel<SpeechRecognitionResult>? resultChannel;
+        Channel<string>? kwChannel;
+
+        lock (this.sessionLock)
+        {
+            if (this.sessionMode == SessionMode.None)
+                return;
+
+            cts = this.sessionCts;
+            resultChannel = this.recognitionChannel;
+            kwChannel = this.keywordChannel;
+
+            this.sessionMode = SessionMode.None;
+            this.sessionCts = null;
+            this.recognitionChannel = null;
+            this.keywordChannel = null;
+            this.WakeWord = null;
+        }
+
+        speechToText.ResultReceived -= this.OnSpeechResult;
+        speechToText.KeywordHeard -= this.OnKeywordHeard;
+        speechToText.Error -= this.OnSpeechError;
+
+        resultChannel?.Writer.TryComplete();
+        kwChannel?.Writer.TryComplete();
+
+        try
+        {
+            if (cts is not null)
+            {
+                await cts.CancelAsync().ConfigureAwait(false);
+                cts.Dispose();
+            }
+        }
+        catch (ObjectDisposedException) { }
+
+        try
+        {
+            if (this.sessionStarted)
+                await speechToText.Stop().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Error stopping speech-to-text service");
+        }
+        finally
+        {
+            this.sessionStarted = false;
+            this.SetStatus(AiState.Idle);
+        }
+    }
+
+    void OnSpeechResult(object? sender, SpeechRecognitionResult result)
+    {
+        this.SpeechResultReceived?.Invoke(result);
+        this.recognitionChannel?.Writer.TryWrite(result);
+    }
+
+    void OnKeywordHeard(object? sender, string keyword)
+    {
+        this.keywordChannel?.Writer.TryWrite(keyword);
+    }
+
+    void OnSpeechError(object? sender, SpeechRecognitionError error)
+    {
+        logger?.LogError(error.Exception, "Speech recognition error: {Message}", error.Message);
+        this.recognitionChannel?.Writer.TryComplete(error.Exception);
+        this.keywordChannel?.Writer.TryComplete(error.Exception);
+    }
+
+    async Task WaitForKeywordAsync(CancellationToken ct)
+    {
+        var channel = this.keywordChannel
+            ?? throw new InvalidOperationException("Speech session is not active.");
+
+        // Flush stale keywords that may have arrived before the caller started waiting.
+        while (channel.Reader.TryRead(out _)) { }
+
+        await channel.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
+        channel.Reader.TryRead(out _);
+    }
+
+    async Task<string?> ReadNextUtteranceAsync(CancellationToken ct)
+    {
+        var channel = this.recognitionChannel
+            ?? throw new InvalidOperationException("Speech session is not active.");
+
+        // Flush partial/non-final results that arrived before this turn started so the next final
+        // result truly represents the current user utterance.
+        this.DrainRecognitionChannel();
+
+        await foreach (var result in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+        {
+            if (result.IsFinal)
+            {
+                var text = result.Text?.Trim();
+                if (!String.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+        }
+
+        return null;
+    }
+
+    void DrainRecognitionChannel()
+    {
+        if (this.recognitionChannel is { } channel)
+        {
+            while (channel.Reader.TryRead(out _)) { }
+        }
     }
 }

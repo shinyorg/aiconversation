@@ -19,6 +19,9 @@ public partial class AuraViewModel(IAiConversationService aiService)
     [ObservableProperty]
     bool isResponseVisible;
 
+    [ObservableProperty]
+    string? livePartialText;
+
     [RelayCommand]
     void DismissResponse() => this.IsResponseVisible = false;
 
@@ -53,6 +56,7 @@ public partial class AuraViewModel(IAiConversationService aiService)
     {
         aiService.StatusChanged += this.OnStatusChanged;
         aiService.AiResponded += this.OnAiResponded;
+        aiService.SpeechResultReceived += this.OnSpeechResult;
         OnPropertyChanged(nameof(StatusText));
     }
 
@@ -60,6 +64,15 @@ public partial class AuraViewModel(IAiConversationService aiService)
     {
         aiService.StatusChanged -= this.OnStatusChanged;
         aiService.AiResponded -= this.OnAiResponded;
+        aiService.SpeechResultReceived -= this.OnSpeechResult;
+    }
+
+    void OnSpeechResult(SpeechRecognitionResult result)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            this.LivePartialText = result.IsFinal ? null : result.Text;
+        });
     }
 
     void OnAiResponded(AiResponse response)

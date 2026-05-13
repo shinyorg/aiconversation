@@ -39,6 +39,15 @@ public class AiConversationServiceTests
             .SpeakAsync(Arg<string>.Any(), Arg<Shiny.Speech.TextToSpeechOptions?>.Any(), Arg<CancellationToken>.Any())
             .Returns(Task.CompletedTask);
 
+        // The new Speech 2.0 contract: Start opens a session, Stop closes it. Both return Task.
+        speechToText
+            .Start(Arg<SpeechRecognitionOptions?>.Any())
+            .Returns(Task.CompletedTask);
+
+        speechToText
+            .Stop()
+            .Returns(Task.CompletedTask);
+
         soundProvider
             .Play(Arg<AiAction>.Any())
             .Returns(Task.CompletedTask);
@@ -326,19 +335,14 @@ public class AiConversationServiceTests
     [Test]
     public async Task ListenAndTalk_ThrowsWhenWakeWordActive()
     {
-        var (service, _, chatClient, speechToText, _, _, _, _) = CreateService(withMessageStore: false);
-
-        // ListenForKeyword is an extension that calls ContinuousRecognize internally
-        speechToText
-            .ContinuousRecognize(Arg<SpeechRecognitionOptions?>.Any(), Arg<CancellationToken>.Any())
-            .Returns(EmptyAsyncEnumerable<SpeechRecognitionResult>());
+        var (service, _, _, speechToText, _, _, _, _) = CreateService(withMessageStore: false);
 
         await service.StartWakeWord("Hey Test");
 
         await Assert.That(() => service.ListenAndTalk(CancellationToken.None))
             .Throws<InvalidOperationException>();
 
-        service.StopWakeWord();
+        await service.StopWakeWord();
     }
 
     #endregion
@@ -350,17 +354,13 @@ public class AiConversationServiceTests
     {
         var (service, _, _, speechToText, _, _, _, _) = CreateService(withMessageStore: false);
 
-        speechToText
-            .ContinuousRecognize(Arg<SpeechRecognitionOptions?>.Any(), Arg<CancellationToken>.Any())
-            .Returns((_, ct) => HangUntilCancelled<SpeechRecognitionResult>(ct));
-
         await service.StartWakeWord("Hey Bot");
 
         await Assert.That(service.IsWakeWordEnabled).IsTrue();
         await Assert.That(service.WakeWord).IsEqualTo("Hey Bot");
 
-        // StopWakeWord cancels the background task
-        service.StopWakeWord();
+        await service.StopWakeWord();
+        await Assert.That(service.WakeWord).IsNull();
     }
 
     [Test]
@@ -368,16 +368,30 @@ public class AiConversationServiceTests
     {
         var (service, _, _, speechToText, _, _, _, _) = CreateService(withMessageStore: false);
 
-        speechToText
-            .ContinuousRecognize(Arg<SpeechRecognitionOptions?>.Any(), Arg<CancellationToken>.Any())
-            .Returns((_, ct) => HangUntilCancelled<SpeechRecognitionResult>(ct));
-
         await service.StartWakeWord("Hey Bot");
 
         await Assert.That(() => service.StartWakeWord("Hey Bot"))
             .Throws<InvalidOperationException>();
 
-        service.StopWakeWord();
+        await service.StopWakeWord();
+    }
+
+    [Test]
+    public async Task StartWakeWord_StartsSpeechSession()
+    {
+        var (service, _, _, speechToText, _, _, _, _) = CreateService(withMessageStore: false);
+
+        await service.StartWakeWord("Hey Bot");
+
+        speechToText
+            .Start(Arg<SpeechRecognitionOptions?>.Any())
+            .Called(Count.Once());
+
+        await service.StopWakeWord();
+
+        speechToText
+            .Stop()
+            .Called(Count.AtLeast(1));
     }
 
     #endregion
@@ -400,26 +414,6 @@ public class AiConversationServiceTests
         var response = new ChatResponse(new ChatMessage(ChatRole.Assistant, text));
         response.FinishReason = ChatFinishReason.Stop;
         return response;
-    }
-
-    static async IAsyncEnumerable<T> EmptyAsyncEnumerable<T>()
-    {
-        await Task.CompletedTask;
-        yield break;
-    }
-
-    static async IAsyncEnumerable<T> HangUntilCancelled<T>(
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        try
-        {
-            await Task.Delay(Timeout.Infinite, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            // expected
-        }
-        yield break;
     }
 
     #endregion
