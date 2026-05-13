@@ -17,7 +17,8 @@ public class AiContext
     public List<string>? QuietWords { get; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
     
     /// <summary>
-    /// Options passed to speech-to-text operations (ListenUntilSilence, ContinuousRecognize).
+    /// Options passed to the speech-to-text session that runs for the duration of wake-word /
+    /// push-to-talk activity. Keywords specified here are merged with the wake word at session start.
     /// </summary>
     public SpeechRecognitionOptions? SpeechToTextOptions { get; set; }
 

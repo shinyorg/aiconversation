@@ -125,7 +125,7 @@ public partial class SettingsViewModel(IAiConversationService aiService, Context
         {
             if (this.IsWakeWordActive)
             {
-                aiService.StopWakeWord();
+                await aiService.StopWakeWord();
             }
             else
             {

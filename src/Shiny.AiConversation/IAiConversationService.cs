@@ -10,7 +10,7 @@ namespace Shiny.AiConversation;
 public interface IAiConversationService
 {
     /// <summary>
-    /// Raised when any observable state changes (Status, CurrentToken, IsWakeWordEnabled, etc).
+    /// Raised when <see cref="Status"/> transitions between Idle / Listening / Thinking / Responding.
     /// </summary>
     event Action<AiState> StatusChanged;
 
@@ -20,23 +20,29 @@ public interface IAiConversationService
     event Action<AiResponse>? AiResponded;
 
     /// <summary>
+    /// Raised for every speech recognition result observed during the current session — useful for live
+    /// transcription previews, voice level meters, or other UI feedback. Includes both interim and final results.
+    /// </summary>
+    event Action<SpeechRecognitionResult>? SpeechResultReceived;
+
+    /// <summary>
     /// The currently active wake word, or null if wake word detection is not running.
     /// </summary>
     string? WakeWord { get; }
 
     /// <summary>
-    /// Begins listening for the specified wake word. Waits for any in-progress AI tasks to complete before starting.
-    /// Once the wake word is detected, captures the user's utterance via speech-to-text and sends it through TalkTo.
-    /// Loops continuously until <see cref="StopWakeWord"/> is called.
+    /// Opens a single long-running speech recognition session and listens for the specified wake word.
+    /// On each detection, captures the next utterance and forwards it to <see cref="TalkTo"/>. The microphone
+    /// stays open across turns (the new Speech 2.0 keep-alive model) until <see cref="StopWakeWord"/> is called.
     /// </summary>
     /// <param name="wakeWord">The keyword phrase to listen for (e.g. "Hey Assistant").</param>
-    /// <exception cref="InvalidOperationException">Thrown if wake word detection is already active.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if any conversation session is already active.</exception>
     Task StartWakeWord(string wakeWord);
 
     /// <summary>
     /// Stops the active wake word detection loop and returns the service to an idle state.
     /// </summary>
-    void StopWakeWord();
+    Task StopWakeWord();
 
     /// <summary>
     /// When true, the service listens for speech during text-to-speech playback to allow
