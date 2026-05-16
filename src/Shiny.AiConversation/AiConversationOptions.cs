@@ -60,7 +60,7 @@ public class AiConversationOptions(IServiceCollection services)
     
 
     /// <summary>
-    ///  
+    ///
     /// </summary>
     /// <typeparam name="TSoundProvider"></typeparam>
     /// <returns></returns>
@@ -68,6 +68,18 @@ public class AiConversationOptions(IServiceCollection services)
         where TSoundProvider : class, ISoundProvider
     {
         services.AddSingleton<ISoundProvider, DefaultSoundPlayer>();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers optional AI tools that allow the AI to list available voices, play voice samples,
+    /// and change its own text-to-speech voice during a conversation.
+    /// Requires speech services (AutoAddSpeechServices must be true, or ITextToSpeechService registered separately).
+    /// </summary>
+    /// <returns>This options instance for chaining.</returns>
+    public AiConversationOptions AddVoiceSelectionTools()
+    {
+        services.AddSingleton<IContextProvider, VoiceSelectionContextProvider>();
         return this;
     }
 }

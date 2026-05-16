@@ -62,6 +62,12 @@ public interface IAiConversationService
     AiAcknowledgement Acknowledgement { get; set; }
 
     /// <summary>
+    /// Options passed to text-to-speech when speaking AI responses aloud.
+    /// Setting this directly overrides any value supplied by context providers.
+    /// </summary>
+    Shiny.Speech.TextToSpeechOptions? TextToSpeechOptions { get; set; }
+
+    /// <summary>
     /// The in-memory chat messages for the current conversation session.
     /// </summary>
     IReadOnlyList<ChatMessage> CurrentChatMessages { get; }

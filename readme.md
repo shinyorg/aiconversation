@@ -13,6 +13,7 @@ A centralized AI service library for .NET MAUI apps that orchestrates chat, spee
 - **Context Providers** — Pluggable `IContextProvider` visitor pattern for populating an `AiContext` per request. Each provider receives a mutable context containing system prompts, AI tools, quiet words, speech-to-text options, and text-to-speech options. A built-in `ContextProvider` handles time-based prompts, acknowledgement-aware voice prompts, and DI-registered `AITool` instances.
 - **Persistent Chat History** — Pluggable `IMessageStore` for storing and querying past conversations
 - **AI History Lookup Tool** — Automatically available when an `IMessageStore` is registered, lets the AI search past conversations on its own
+- **Voice Selection Tools** — Optional `AddVoiceSelectionTools()` enables the AI to list voices, play samples, and switch its own TTS voice mid-conversation
 - **State Management** — Observable `AiState` (Idle / Listening / Thinking / Responding) with events
 - **Sound Effects** — Configurable sound stream factories for each state transition
 - **Conversation Continuation** — AI responses ending with a question automatically keep the microphone open for a reply
@@ -224,6 +225,31 @@ The `AiContext` is a mutable context object populated by `IContextProvider` impl
 ### ChatLookupAITool
 
 When an `IMessageStore` is registered via `SetMessageStore<T>()`, the built-in `ContextProvider` automatically adds a `ChatLookupAITool` (`lookup_chat_history`) to every request. This allows the AI to autonomously search past conversations when the user asks about previous discussions — no extra code required.
+
+### VoiceSelectionTools (optional)
+
+Call `AddVoiceSelectionTools()` during registration to give the AI three voice-related tools:
+
+| Tool | Description |
+|------|-------------|
+| `get_available_voices` | Lists all available TTS voices, optionally filtered by culture code |
+| `play_voice_sample` | Speaks a sample phrase using a specific voice so the user can hear it |
+| `change_voice` | Switches the AI's speaking voice; persists for the session |
+
+```csharp
+builder.Services.AddShinyAiConversation(opts =>
+{
+    opts.AddStaticOpenAIChatClient(...);
+    opts.AddVoiceSelectionTools();
+});
+```
+
+Once registered, the user can say things like:
+- *"Can you play a few different voices for me?"*
+- *"Switch to a different voice"*
+- *"Use a British accent"*
+
+The selected voice is written directly to `IAiConversationService.TextToSpeechOptions`, which the service uses for all subsequent TTS responses. Requires `ITextToSpeechService` — available automatically when `AutoAddSpeechServices` is `true` (the default).
 
 ## Architecture
 
