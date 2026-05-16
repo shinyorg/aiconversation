@@ -18,6 +18,7 @@
     <Project Path="samples/Sample.Blazor/Sample.Blazor.csproj"/>
     <Project Path="src/Shiny.AiConversation.MessageStores.SqliteDocDb/Shiny.AiConversation.MessageStores.SqliteDocDb.csproj"/>
     <Project Path="src/Shiny.AiConversation/Shiny.AiConversation.csproj"/>
+    <Project Path="src/Shiny.AiConversation.GithubCopilot/Shiny.AiConversation.GithubCopilot.csproj"/>
     <Project Path="src/Shiny.AiConversation.Maui.GithubCopilot/Shiny.AiConversation.Maui.GithubCopilot.csproj"/>
     <Project Path="src/Shiny.AiConversation.OpenAi/Shiny.AiConversation.OpenAi.csproj"/>
     <Project Path="tests/Shiny.AiConversation.Tests/Shiny.AiConversation.Tests.csproj"/>

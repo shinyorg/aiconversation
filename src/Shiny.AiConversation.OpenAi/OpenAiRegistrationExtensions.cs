@@ -20,10 +20,4 @@ public static class OpenAiRegistrationExtensions
         return options;
     }
 
-    public static AiConversationOptions AddStaticGithubCopilotChatClient(
-        this AiConversationOptions options,
-        string personalAccessToken,
-        string modelName = "gpt-4o",
-        Action<ChatClientBuilder>? action = null
-    ) => options.AddStaticOpenAIChatClient(personalAccessToken, "https://api.githubcopilot.com", modelName, action);
 }
