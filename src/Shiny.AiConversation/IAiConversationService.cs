@@ -26,6 +26,13 @@ public interface IAiConversationService
     event Action<SpeechRecognitionResult>? SpeechResultReceived;
 
     /// <summary>
+    /// Raised when an unrecoverable error stops the service from acting (the active ListenAndTalk or
+    /// wake-word loop is aborted, or the underlying speech driver reports a fatal error). Normal
+    /// cancellation does not raise this event.
+    /// </summary>
+    event Action<Exception>? ErrorOccurred;
+
+    /// <summary>
     /// The currently active wake word, or null if wake word detection is not running.
     /// </summary>
     string? WakeWord { get; }

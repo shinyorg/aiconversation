@@ -6,7 +6,7 @@ using Shiny.Speech;
 
 namespace Sample.Pages;
 
-public partial class AuraViewModel(IAiConversationService aiService)
+public partial class AuraViewModel(IAiConversationService aiService, IDialogs dialogs)
     : ObservableObject, IPageLifecycleAware
 {
     CancellationTokenSource? listenCts;
@@ -57,6 +57,7 @@ public partial class AuraViewModel(IAiConversationService aiService)
         aiService.StatusChanged += this.OnStatusChanged;
         aiService.AiResponded += this.OnAiResponded;
         aiService.SpeechResultReceived += this.OnSpeechResult;
+        aiService.ErrorOccurred += this.OnErrorOccurred;
         OnPropertyChanged(nameof(StatusText));
     }
 
@@ -65,7 +66,11 @@ public partial class AuraViewModel(IAiConversationService aiService)
         aiService.StatusChanged -= this.OnStatusChanged;
         aiService.AiResponded -= this.OnAiResponded;
         aiService.SpeechResultReceived -= this.OnSpeechResult;
+        aiService.ErrorOccurred -= this.OnErrorOccurred;
     }
+
+    async void OnErrorOccurred(Exception ex)
+        => await dialogs.Alert("Error", ex.Message);
 
     void OnSpeechResult(SpeechRecognitionResult result)
     {

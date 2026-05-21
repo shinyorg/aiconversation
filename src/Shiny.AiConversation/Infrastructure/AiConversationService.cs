@@ -31,6 +31,7 @@ public class AiConversationService(
     public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
     public event Action<SpeechRecognitionResult>? SpeechResultReceived;
+    public event Action<Exception>? ErrorOccurred;
     public bool IsWakeWordEnabled => this.sessionMode == SessionMode.WakeWord;
     public string? WakeWord { get; private set; }
     public bool InterruptionEnabled { get; set; }
@@ -117,6 +118,7 @@ public class AiConversationService(
             logger?.LogError(ex, "ListenAndTalk error");
             await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
+            this.RaiseError(ex);
             throw;
         }
         finally
@@ -176,6 +178,7 @@ public class AiConversationService(
         {
             logger?.LogError(ex, "Wake word loop error");
             await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
+            this.RaiseError(ex);
         }
         finally
         {
@@ -203,8 +206,10 @@ public class AiConversationService(
 
         chatMessages.AddRange(aiContext.SystemPrompts.Select(x => new ChatMessage(ChatRole.System, x)));
 
-        var options = new ChatOptions();
-        options.Tools = aiContext.Tools;
+        var options = new ChatOptions
+        {
+            Tools = aiContext.Tools
+        };
 
         logger?.LogDebug(
             "Sending {MessageCount} messages to chat client with {ToolCount} tools, Acknowledgement: {Acknowledgement}",
@@ -230,7 +235,7 @@ public class AiConversationService(
         if (response.Text is { } responseText)
             this.currentMessages.Add(new ChatMessage(ChatRole.Assistant, responseText));
 
-        var expectsResponse = response.Text?.TrimEnd().EndsWith('?') ?? false;
+        var expectsResponse = TextEndsWithQuestion(response.Text);
         this.lastResponseExpectedReply = expectsResponse;
         logger?.LogDebug("ExpectsResponse: {ExpectsResponse}", expectsResponse);
         this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud, expectsResponse));
@@ -343,18 +348,6 @@ public class AiConversationService(
             if (String.IsNullOrWhiteSpace(result.Text))
                 continue;
 
-            // Filter results captured while TTS is actively speaking unless confidence is high enough to
-            // overcome likely echo from the synthesized voice.
-            if (textToSpeech.IsSpeaking && result.Confidence is { } conf && conf < this.InterruptionMinConfidence)
-            {
-                logger?.LogDebug(
-                    "Ignoring low-confidence result during TTS - Text: {Text}, Confidence: {Confidence}",
-                    result.Text,
-                    conf
-                );
-                continue;
-            }
-
             var trimmed = result.Text.Trim();
             logger?.LogDebug(
                 "Speech detected during TTS - Text: {Text}, IsFinal: {IsFinal}, Confidence: {Confidence}",
@@ -363,17 +356,36 @@ public class AiConversationService(
                 result.Confidence
             );
 
+            // Quiet-word match: the regex itself is strong evidence the user is interrupting, so
+            // act on the first partial that matches without waiting for a final result or filtering
+            // on confidence (iOS partials carry Confidence = 0 as a placeholder, not a real score).
             if (quietOnlyPattern.IsMatch(trimmed))
             {
                 logger?.LogDebug("Quiet word matched: {Word}", trimmed);
                 return new InterruptionResult(InterruptionKind.QuietWord, trimmed, result.Confidence);
             }
 
-            if (result.IsFinal)
+            if (!result.IsFinal)
+                continue;
+
+            // For "new utterance" interruption (any non-quiet-word speech) wait for a final result,
+            // then suppress likely TTS echo with the confidence floor. Confidence == 0 on a final is
+            // treated as no-info rather than "very low" and is allowed through.
+            if (textToSpeech.IsSpeaking
+                && result.Confidence is { } conf
+                && conf > 0
+                && conf < this.InterruptionMinConfidence)
             {
-                logger?.LogDebug("New utterance detected: {Utterance}", trimmed);
-                return new InterruptionResult(InterruptionKind.NewUtterance, trimmed, result.Confidence);
+                logger?.LogDebug(
+                    "Ignoring low-confidence final during TTS - Text: {Text}, Confidence: {Confidence}",
+                    trimmed,
+                    conf
+                );
+                continue;
             }
+
+            logger?.LogDebug("New utterance detected: {Utterance}", trimmed);
+            return new InterruptionResult(InterruptionKind.NewUtterance, trimmed, result.Confidence);
         }
 
         logger?.LogDebug("Recognition channel completed with no interruption");
@@ -551,8 +563,20 @@ public class AiConversationService(
     void OnSpeechError(object? sender, SpeechRecognitionError error)
     {
         logger?.LogError(error.Exception, "Speech recognition error: {Message}", error.Message);
-        this.recognitionChannel?.Writer.TryComplete(error.Exception);
-        this.keywordChannel?.Writer.TryComplete(error.Exception);
+        var ex = error.Exception ?? new InvalidOperationException(error.Message);
+        this.recognitionChannel?.Writer.TryComplete(ex);
+        this.keywordChannel?.Writer.TryComplete(ex);
+        this.RaiseError(ex);
+    }
+
+    void RaiseError(Exception ex)
+    {
+        var handler = this.ErrorOccurred;
+        if (handler == null)
+            return;
+
+        try { handler.Invoke(ex); }
+        catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "ErrorOccurred subscriber threw"); }
     }
 
     async Task WaitForKeywordAsync(CancellationToken ct)
@@ -595,5 +619,37 @@ public class AiConversationService(
         {
             while (channel.Reader.TryRead(out _)) { }
         }
+    }
+
+    static bool TextEndsWithQuestion(string? text)
+    {
+        if (String.IsNullOrWhiteSpace(text))
+            return false;
+
+        var span = text.AsSpan();
+        var i = span.Length - 1;
+
+        // Skip trailing whitespace + closing markup/quotes/brackets so we can see the real terminator.
+        while (i >= 0 && IsClosingMarkup(span[i]))
+            i--;
+
+        // Walk back through any run of terminator punctuation (handles "?!", "?.", etc.).
+        var hasQuestion = false;
+        while (i >= 0 && IsTerminator(span[i]))
+        {
+            if (span[i] is '?' or '？')
+                hasQuestion = true;
+            i--;
+        }
+
+        return hasQuestion;
+
+        static bool IsClosingMarkup(char c) =>
+            Char.IsWhiteSpace(c)
+            || c is '"' or '\'' or '*' or ')' or ']' or '}' or '`' or '_' or '~'
+            || c is '”' or '’';
+
+        static bool IsTerminator(char c) =>
+            c is '?' or '!' or '.' or '？' or '！' or '。';
     }
 }

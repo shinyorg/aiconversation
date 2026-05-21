@@ -11,10 +11,12 @@ namespace Shiny.AiConversation;
 /// </summary>
 public class AiContext
 {
+    public static IReadOnlyList<string> DefaultQuietWords { get; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
+
     public AiAcknowledgement Acknowledgement { get; set; }
     public List<AITool> Tools { get; } = [];
     public List<string> SystemPrompts { get; } = [];
-    public List<string>? QuietWords { get; } = ["cancel", "quiet", "shut up", "stop", "nevermind", "never mind", "hush"];
+    public List<string>? QuietWords { get; } = [..DefaultQuietWords];
     
     /// <summary>
     /// Options passed to the speech-to-text session that runs for the duration of wake-word /
@@ -50,7 +52,7 @@ public sealed class ContextProvider(
     readonly Lock sync = new();
     readonly List<string> systemPrompts = [];
     readonly List<AITool> manualTools = [];
-    readonly List<string> quietWords = [];
+    readonly List<string> quietWords = [..AiContext.DefaultQuietWords];
 
     public void AddSystemPrompt(string prompt)
     {
@@ -137,11 +139,8 @@ public sealed class ContextProvider(
             context.SystemPrompts.AddRange(this.systemPrompts);
             context.Tools.AddRange(this.manualTools);
 
-            if (this.quietWords.Count > 0)
-            {
-                context.QuietWords?.Clear();
-                context.QuietWords?.AddRange(this.quietWords);
-            }
+            context.QuietWords?.Clear();
+            context.QuietWords?.AddRange(this.quietWords);
         }
         return Task.CompletedTask;
     }

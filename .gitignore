@@ -402,3 +402,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 .vscode/launch.json
+
+# Local NuGet feed for testing unreleased Shiny.Speech betas (see nuget.config)
+.local-nuget/
