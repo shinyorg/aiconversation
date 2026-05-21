@@ -195,14 +195,28 @@ public class GitHubCopilotChatClientProvider : IChatClientProvider
             ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code"
         });
 
-        var response = await Http.PostAsync(AccessTokenUrl, content, ct);
-        response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<AccessTokenResponse>(ct);
-
-        if (!String.IsNullOrEmpty(result?.AccessToken))
+        HttpResponseMessage response;
+        try
         {
-            await SecureStorage.Default.SetAsync(TokenStorageKey, result.AccessToken);
-            return true;
+            response = await Http.PostAsync(AccessTokenUrl, content, ct);
+        }
+        catch (HttpRequestException)
+        {
+            // Transient network failures (DNS, connection refused, etc.) — keep polling until
+            // the device-code expiry CancelAfter fires.
+            return false;
+        }
+
+        using (response)
+        {
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<AccessTokenResponse>(ct);
+
+            if (!String.IsNullOrEmpty(result?.AccessToken))
+            {
+                await SecureStorage.Default.SetAsync(TokenStorageKey, result.AccessToken);
+                return true;
+            }
         }
 
         return false;

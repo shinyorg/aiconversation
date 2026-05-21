@@ -92,7 +92,7 @@ public class AiConversationService(
             {
                 this.lastResponseExpectedReply = false;
                 this.SetStatus(AiState.Listening);
-                await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
+                await this.SafePlay(AiAction.Ok).ConfigureAwait(false);
 
                 logger?.LogDebug("Listening for utterance");
                 var utterance = await this.ReadNextUtteranceAsync(ct).ConfigureAwait(false);
@@ -110,16 +110,15 @@ public class AiConversationService(
         catch (OperationCanceledException)
         {
             logger?.LogDebug("ListenAndTalk cancelled");
-            await soundProvider.Play(AiAction.Cancel).ConfigureAwait(false);
+            await this.SafePlay(AiAction.Cancel).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "ListenAndTalk error");
-            await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
+            await this.SafePlay(AiAction.Error).ConfigureAwait(false);
             this.SetStatus(AiState.Idle);
             this.RaiseError(ex);
-            throw;
         }
         finally
         {
@@ -177,7 +176,7 @@ public class AiConversationService(
         catch (Exception ex)
         {
             logger?.LogError(ex, "Wake word loop error");
-            await soundProvider.Play(AiAction.Error).ConfigureAwait(false);
+            await this.SafePlay(AiAction.Error).ConfigureAwait(false);
             this.RaiseError(ex);
         }
         finally
@@ -189,7 +188,7 @@ public class AiConversationService(
     async Task ProcessMessage(string message, CancellationToken cancellationToken)
     {
         this.SetStatus(AiState.Thinking);
-        await soundProvider.Play(AiAction.Think).ConfigureAwait(false);
+        await this.SafePlay(AiAction.Think).ConfigureAwait(false);
 
         logger?.LogDebug("Getting chat client");
         var chatClient = await chatClientProvider
@@ -219,7 +218,7 @@ public class AiConversationService(
         );
 
         this.SetStatus(AiState.Responding);
-        await soundProvider.Play(AiAction.Respond).ConfigureAwait(false);
+        await this.SafePlay(AiAction.Respond).ConfigureAwait(false);
 
         var wasReadAloud = this.Acknowledgement > AiAcknowledgement.AudioBlip;
         var response = await chatClient.GetResponseAsync(chatMessages, options, cancellationToken).ConfigureAwait(false);
@@ -270,7 +269,7 @@ public class AiConversationService(
             logger?.LogDebug("Skipping TTS - WasReadAloud: {WasReadAloud}, HasText: {HasText}", wasReadAloud, response.Text != null);
         }
 
-        await soundProvider.Play(AiAction.Ok).ConfigureAwait(false);
+        await this.SafePlay(AiAction.Ok).ConfigureAwait(false);
     }
 
     async Task<InterruptionResult> SpeakWithInterruptionSupport(string text, CancellationToken cancellationToken)
@@ -577,6 +576,12 @@ public class AiConversationService(
 
         try { handler.Invoke(ex); }
         catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "ErrorOccurred subscriber threw"); }
+    }
+
+    async Task SafePlay(AiAction action)
+    {
+        try { await soundProvider.Play(action).ConfigureAwait(false); }
+        catch (Exception ex) { logger?.LogWarning(ex, "Sound playback failed for {Action}", action); }
     }
 
     async Task WaitForKeywordAsync(CancellationToken ct)

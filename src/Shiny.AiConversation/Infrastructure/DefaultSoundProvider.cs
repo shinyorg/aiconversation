@@ -8,11 +8,11 @@ public class DefaultSoundPlayer(IAudioPlayer audioPlayer) : ISoundProvider
     {
         var resourceName = action switch
         {
-            AiAction.Ok => "ok.m4a",
-            AiAction.Think => "think.m4a",
-            AiAction.Respond => "responding.m4a",
-            AiAction.Cancel => "cancel.m4a",
-            AiAction.Error => "error.m4a",
+            AiAction.Ok => "ok.wav",
+            AiAction.Think => "think.wav",
+            AiAction.Respond => "responding.wav",
+            AiAction.Cancel => "cancel.wav",
+            AiAction.Error => "error.wav",
             _ => null
         };
 
