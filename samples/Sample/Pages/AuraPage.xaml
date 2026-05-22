@@ -5,73 +5,118 @@
                      xmlns:pages="clr-namespace:Sample.Pages"
                      x:Class="Sample.Pages.AuraPage"
                      x:DataType="pages:AuraViewModel"
-                     Title="Aura"
-                     BackgroundColor="{AppThemeBinding Light=#0F0E2E, Dark=#0A0920}">
+                     Title="K.I.T.T."
+                     BackgroundColor="#000000">
 
     <Grid RowDefinitions="*,Auto" Padding="20">
 
-        <Grid VerticalOptions="Center" HorizontalOptions="Center"
-              WidthRequest="300" HeightRequest="300">
-            <Grid.GestureRecognizers>
+        <Border Stroke="#330000"
+                StrokeThickness="2"
+                BackgroundColor="#0A0000"
+                VerticalOptions="Fill"
+                HorizontalOptions="Fill">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="8" />
+            </Border.StrokeShape>
+            <Border.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding AuraTappedCommand}" />
-            </Grid.GestureRecognizers>
+            </Border.GestureRecognizers>
 
-            <!-- Animations commented out for now — just show status text -->
-            <Ellipse x:Name="RippleRing"
-                     WidthRequest="280" HeightRequest="280"
-                     HorizontalOptions="Center" VerticalOptions="Center"
-                     StrokeThickness="2"
-                     Fill="Transparent"
-                     Opacity="0"
-                     IsVisible="False" />
+            <Grid RowDefinitions="18,*,18" RowSpacing="14" Padding="14">
 
-            <Ellipse x:Name="OuterRing"
-                     WidthRequest="250" HeightRequest="250"
-                     HorizontalOptions="Center" VerticalOptions="Center"
-                     StrokeThickness="3"
-                     Opacity="0.3" />
+                <!-- Top scanner channel -->
+                <Border x:Name="ScannerTopChannel"
+                        Grid.Row="0"
+                        BackgroundColor="#1A0000"
+                        Stroke="#220000"
+                        StrokeThickness="1"
+                        Padding="2">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="2" />
+                    </Border.StrokeShape>
+                    <BoxView x:Name="ScannerTop"
+                             Color="#FF1A00"
+                             WidthRequest="110"
+                             HeightRequest="14"
+                             CornerRadius="2"
+                             HorizontalOptions="Start">
+                        <BoxView.Shadow>
+                            <Shadow Brush="#FF2A00" Offset="0,0" Radius="14" Opacity="0.9" />
+                        </BoxView.Shadow>
+                    </BoxView>
+                </Border>
 
-            <Ellipse x:Name="InnerOrb"
-                     WidthRequest="120" HeightRequest="120"
-                     HorizontalOptions="Center" VerticalOptions="Center"
-                     Opacity="0.5" />
+                <!-- Voice modulator (built in code-behind) -->
+                <HorizontalStackLayout x:Name="BarsHost"
+                                       Grid.Row="1"
+                                       Spacing="22"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
 
-            <Label Text="Tap to talk"
-                   FontSize="16"
-                   TextColor="#A29BFE"
-                   HorizontalOptions="Center"
-                   VerticalOptions="Center" />
+                <!-- Bottom scanner channel -->
+                <Border Grid.Row="2"
+                        BackgroundColor="#1A0000"
+                        Stroke="#220000"
+                        StrokeThickness="1"
+                        Padding="2">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="2" />
+                    </Border.StrokeShape>
+                    <BoxView x:Name="ScannerBottom"
+                             Color="#FF1A00"
+                             WidthRequest="110"
+                             HeightRequest="14"
+                             CornerRadius="2"
+                             HorizontalOptions="End">
+                        <BoxView.Shadow>
+                            <Shadow Brush="#FF2A00" Offset="0,0" Radius="14" Opacity="0.9" />
+                        </BoxView.Shadow>
+                    </BoxView>
+                </Border>
+            </Grid>
+        </Border>
 
-        </Grid>
-
-        <!-- Status label -->
-        <Label Grid.Row="1"
-               Text="{Binding StatusText}"
-               FontSize="24"
-               FontAttributes="Bold"
-               TextColor="#A29BFE"
-               HorizontalOptions="Center"
-               Margin="0,0,0,40" />
+        <VerticalStackLayout Grid.Row="1"
+                             Spacing="6"
+                             HorizontalOptions="Center"
+                             Margin="0,0,0,40">
+            <Label Text="K.I.T.T."
+                   FontSize="14"
+                   FontAttributes="Bold"
+                   CharacterSpacing="6"
+                   TextColor="#FF3A00"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding StatusText}"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="#FF1A00"
+                   HorizontalOptions="Center" />
+            <Label Text="{Binding LastTokenBurn}"
+                   FontSize="11"
+                   CharacterSpacing="2"
+                   TextColor="#FF8855"
+                   HorizontalOptions="Center" />
+        </VerticalStackLayout>
 
     </Grid>
 
     <fp:ShinyContentPage.Panels>
-        <!-- Floating response panel -->
         <fp:FloatingPanel IsOpen="{Binding IsResponseVisible}"
                           FitContent="True"
                           HasBackdrop="False"
                           CloseOnBackdropTap="False"
-                          PanelBackgroundColor="#E61A1A2E"
-                          HandleColor="#A29BFE"
+                          PanelBackgroundColor="#E61A0000"
+                          HandleColor="#FF1A00"
                           PanelCornerRadius="16">
             <VerticalStackLayout Padding="20,8,20,20" Spacing="12">
-                <Label Text="Copilot"
+                <Label Text="K.I.T.T."
                        FontSize="14"
                        FontAttributes="Bold"
-                       TextColor="#A29BFE" />
+                       CharacterSpacing="4"
+                       TextColor="#FF3A00" />
                 <Label Text="{Binding LastResponseText}"
                        FontSize="15"
-                       TextColor="#CCFFFFFF"
+                       TextColor="#FFD0B0"
                        LineBreakMode="WordWrap"
                        MaxLines="20" />
             </VerticalStackLayout>

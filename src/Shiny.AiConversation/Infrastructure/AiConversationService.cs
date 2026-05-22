@@ -27,6 +27,9 @@ public class AiConversationService(
     Channel<string>? keywordChannel;
     bool sessionStarted;
     bool lastResponseExpectedReply;
+    long suppressResultsUntilTicks;
+
+    static readonly TimeSpan TtsEchoSettleWindow = TimeSpan.FromMilliseconds(750);
 
     public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
@@ -283,12 +286,25 @@ public class AiConversationService(
                 quietWords?.Count ?? 0,
                 this.sessionStarted
             );
-            await textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, cancellationToken).ConfigureAwait(false);
+            // Suppress recognition while TTS is speaking, plus a short settle window after, so the
+            // recognizer's own transcription of the AI's voice doesn't become the next "utterance".
+            Interlocked.Exchange(ref this.suppressResultsUntilTicks, DateTimeOffset.MaxValue.UtcTicks);
+            try
+            {
+                await textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                var until = DateTimeOffset.UtcNow.Add(TtsEchoSettleWindow).UtcTicks;
+                Interlocked.Exchange(ref this.suppressResultsUntilTicks, until);
+                this.DrainRecognitionChannel();
+            }
             logger?.LogDebug("TTS completed (no interruption path)");
             return new InterruptionResult(InterruptionKind.None);
         }
 
         logger?.LogDebug("Speaking with interruption support, {Count} quiet words configured", quietWords.Count);
+        // Interruption path: do NOT suppress recognition — ListenDuringSpeech needs the live stream.
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var linkedToken = linkedCts.Token;
 
@@ -544,6 +560,7 @@ public class AiConversationService(
         finally
         {
             this.sessionStarted = false;
+            Interlocked.Exchange(ref this.suppressResultsUntilTicks, 0);
             this.SetStatus(AiState.Idle);
         }
     }
@@ -551,6 +568,14 @@ public class AiConversationService(
     void OnSpeechResult(object? sender, SpeechRecognitionResult result)
     {
         this.SpeechResultReceived?.Invoke(result);
+
+        var suppressUntil = Interlocked.Read(ref this.suppressResultsUntilTicks);
+        if (suppressUntil > 0 && DateTimeOffset.UtcNow.UtcTicks < suppressUntil)
+        {
+            logger?.LogDebug("Suppressing recognition during TTS echo window: {Text}", result.Text);
+            return;
+        }
+
         this.recognitionChannel?.Writer.TryWrite(result);
     }
 

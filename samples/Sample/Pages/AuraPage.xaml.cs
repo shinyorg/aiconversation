@@ -5,133 +5,126 @@ namespace Sample.Pages;
 
 public partial class AuraPage : ShinyContentPage
 {
-    bool isAnimating;
+    // Classic K.I.T.T. voice modulator: a tall center beam flanked by two equal,
+    // smaller bouncing beams.
+    const int BarCount = 3;
+    const double CenterBarHeightFraction = 0.95;
+    const double SideBarHeightFraction = 0.55;
+    const double BarWidth = 84;
+
+    readonly BoxView[] bars = new BoxView[BarCount];
+    readonly double[] barMaxHeights = new double[BarCount];
+    readonly Random rng = new();
+    IDispatcherTimer? barTimer;
+    double scannerTravel;
 
     public AuraPage()
     {
         InitializeComponent();
+        this.BuildBars();
+        this.BarsHost.SizeChanged += this.OnBarsHostSizeChanged;
+        this.ScannerTopChannel.SizeChanged += this.OnScannerChannelSizeChanged;
     }
 
-    // protected override void OnBindingContextChanged()
-    // {
-    //     base.OnBindingContextChanged();
-    //     if (BindingContext is AuraViewModel vm)
-    //     {
-    //         vm.PropertyChanged += (_, e) =>
-    //         {
-    //             if (e.PropertyName == nameof(AuraViewModel.CurrentState))
-    //                 AnimateForState(vm.CurrentState);
-    //         };
-    //     }
-    // }
-
-    // protected override void OnAppearing()
-    // {
-    //     base.OnAppearing();
-    //     // if (BindingContext is AuraViewModel vm)
-    //     //     AnimateForState(vm.CurrentState);
-    // }
-    //
-    // protected override void OnDisappearing()
-    // {
-    //     base.OnDisappearing();
-    //     // this.AbortAnimation("AuraPulse");
-    //     // this.AbortAnimation("AuraSpin");
-    //     // this.AbortAnimation("AuraRipple");
-    //     isAnimating = false;
-    // }
-
-    void AnimateForState(AiState state)
+    void BuildBars()
     {
-        this.AbortAnimation("AuraPulse");
-        this.AbortAnimation("AuraSpin");
-        this.AbortAnimation("AuraRipple");
-        isAnimating = false;
-
-        switch (state)
+        for (var i = 0; i < BarCount; i++)
         {
-            case AiState.Idle:
-                AnimateIdle();
-                break;
-            case AiState.Listening:
-                AnimateListening();
-                break;
-            case AiState.Thinking:
-                AnimateThinking();
-                break;
-            case AiState.Responding:
-                AnimateResponding();
-                break;
+            var bar = new BoxView
+            {
+                Color = Color.FromArgb("#FF1A00"),
+                WidthRequest = BarWidth,
+                HeightRequest = 6,
+                CornerRadius = 3,
+                VerticalOptions = LayoutOptions.Center,
+                Shadow = new Shadow
+                {
+                    Brush = new SolidColorBrush(Color.FromArgb("#FF3A00")),
+                    Offset = new Point(0, 0),
+                    Radius = 16,
+                    Opacity = 0.9f
+                }
+            };
+            this.bars[i] = bar;
+            this.BarsHost.Children.Add(bar);
         }
     }
 
-    void AnimateIdle()
+    void OnBarsHostSizeChanged(object? sender, EventArgs e)
     {
-        isAnimating = true;
-        var animation = new Animation(v =>
-        {
-            OuterRing.Scale = 0.9 + (v * 0.1);
-            OuterRing.Opacity = 0.2 + (v * 0.15);
-            InnerOrb.Scale = 0.85 + (v * 0.15);
-            InnerOrb.Opacity = 0.3 + (v * 0.2);
-        }, 0, 1);
+        var available = this.BarsHost.Height;
+        if (available <= 0)
+            return;
 
-        animation.Commit(this, "AuraPulse", length: 3000, easing: Easing.SinInOut,
-            finished: (_, _) => { if (isAnimating) AnimateIdle(); });
+        this.barMaxHeights[0] = available * SideBarHeightFraction;
+        this.barMaxHeights[1] = available * CenterBarHeightFraction;
+        this.barMaxHeights[2] = available * SideBarHeightFraction;
     }
 
-    void AnimateListening()
+    void OnScannerChannelSizeChanged(object? sender, EventArgs e)
     {
-        isAnimating = true;
-        RippleRing.IsVisible = true;
-        RippleRing.Scale = 0.5;
-        RippleRing.Opacity = 0.8;
-
-        var animation = new Animation(v =>
-        {
-            OuterRing.Scale = 0.95 + (v * 0.15);
-            OuterRing.Opacity = 0.5 + (v * 0.3);
-            InnerOrb.Scale = 0.9 + (v * 0.2);
-            InnerOrb.Opacity = 0.6 + (v * 0.3);
-            RippleRing.Scale = 0.6 + (v * 0.8);
-            RippleRing.Opacity = 0.8 - (v * 0.8);
-        }, 0, 1);
-
-        animation.Commit(this, "AuraRipple", length: 1500, easing: Easing.CubicOut,
-            finished: (_, _) =>
-            {
-                if (isAnimating) AnimateListening();
-                else RippleRing.IsVisible = false;
-            });
+        // Travel = channel inner width minus scanner width, accounting for the channel's own padding.
+        var inner = this.ScannerTopChannel.Width - 4; // matches Padding="2" on each channel border
+        this.scannerTravel = Math.Max(0, inner - this.ScannerTop.Width);
     }
 
-    void AnimateThinking()
+    protected override void OnAppearing()
     {
-        isAnimating = true;
-        var animation = new Animation(v =>
-        {
-            OuterRing.Rotation = v * 360;
-            OuterRing.Opacity = 0.5 + (Math.Sin(v * Math.PI * 2) * 0.3);
-            InnerOrb.Scale = 0.8 + (Math.Sin(v * Math.PI * 4) * 0.15);
-            InnerOrb.Opacity = 0.5 + (Math.Sin(v * Math.PI * 3) * 0.3);
-        }, 0, 1);
-
-        animation.Commit(this, "AuraSpin", length: 2000, easing: Easing.Linear,
-            finished: (_, _) => { if (isAnimating) AnimateThinking(); });
+        base.OnAppearing();
+        this.StartScanner();
+        this.StartBarTicker();
     }
 
-    void AnimateResponding()
+    protected override void OnDisappearing()
     {
-        isAnimating = true;
-        var animation = new Animation(v =>
-        {
-            OuterRing.Scale = 1.0 + (v * 0.2);
-            OuterRing.Opacity = 0.6 + (v * 0.4);
-            InnerOrb.Scale = 0.9 + (Math.Sin(v * Math.PI * 2) * 0.2);
-            InnerOrb.Opacity = 0.7 + (v * 0.3);
-        }, 0, 1);
+        base.OnDisappearing();
+        this.AbortAnimation("KittScanner");
+        this.barTimer?.Stop();
+        this.barTimer = null;
+    }
 
-        animation.Commit(this, "AuraPulse", length: 1000, easing: Easing.SinInOut,
-            finished: (_, _) => { if (isAnimating) AnimateResponding(); });
+    void StartBarTicker()
+    {
+        this.barTimer = this.Dispatcher.CreateTimer();
+        this.barTimer.Interval = TimeSpan.FromMilliseconds(70);
+        this.barTimer.Tick += (_, _) =>
+        {
+            if (this.BindingContext is AuraViewModel vm)
+                this.UpdateBars(vm.AudioLevel, vm.CurrentState);
+        };
+        this.barTimer.Start();
+    }
+
+    void UpdateBars(double level, AiState state)
+    {
+        var effectiveLevel = state switch
+        {
+            AiState.Responding => Math.Max(level, 0.10),
+            AiState.Listening  => 0.22 + (this.rng.NextDouble() * 0.18),
+            AiState.Thinking   => 0.14 + (this.rng.NextDouble() * 0.12),
+            _                  => 0.0
+        };
+
+        // Side beams "bounce" equally — share a single jitter draw so they stay symmetric.
+        var sideJitter = 0.7 + (this.rng.NextDouble() * 0.3);
+        var centerJitter = 0.8 + (this.rng.NextDouble() * 0.2);
+
+        this.bars[0].HeightRequest = Math.Max(6, this.barMaxHeights[0] * effectiveLevel * sideJitter);
+        this.bars[1].HeightRequest = Math.Max(6, this.barMaxHeights[1] * effectiveLevel * centerJitter);
+        this.bars[2].HeightRequest = Math.Max(6, this.barMaxHeights[2] * effectiveLevel * sideJitter);
+    }
+
+    void StartScanner()
+    {
+        // Top scanner sweeps left→right; bottom mirrors right→left for the
+        // signature Knight Rider counter-sweep look. Travel is measured live
+        // so it adapts when the panel fills different screen sizes.
+        var animation = new Animation();
+        animation.Add(0.0, 0.5, new Animation(v => this.ScannerTop.TranslationX = v * this.scannerTravel, 0, 1, Easing.SinInOut));
+        animation.Add(0.5, 1.0, new Animation(v => this.ScannerTop.TranslationX = v * this.scannerTravel, 1, 0, Easing.SinInOut));
+        animation.Add(0.0, 0.5, new Animation(v => this.ScannerBottom.TranslationX = -v * this.scannerTravel, 0, 1, Easing.SinInOut));
+        animation.Add(0.5, 1.0, new Animation(v => this.ScannerBottom.TranslationX = -v * this.scannerTravel, 1, 0, Easing.SinInOut));
+
+        animation.Commit(this, "KittScanner", length: 2400, easing: Easing.Linear, repeat: () => true);
     }
 }

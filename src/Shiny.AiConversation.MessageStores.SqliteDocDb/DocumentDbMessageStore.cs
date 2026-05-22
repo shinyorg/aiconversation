@@ -6,21 +6,43 @@ namespace Shiny.AiConversation.MessageStores.SqliteDocDb;
 
 public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
 {
-    public Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
+    public async Task Store(string? userTriggeringMessage, ChatResponse response, CancellationToken cancellationToken)
     {
-        if (response.Text is not { } text)
-            return Task.CompletedTask;
+        var now = DateTimeOffset.UtcNow;
 
-        return store.Insert(
-            new AiChatMessage(
-                Guid.NewGuid().ToString(),
-                text,
-                DateTimeOffset.UtcNow,
-                ChatMessageDirection.AI
-            ),
-            AppJsonContext.Default.AiChatMessage,
-            cancellationToken
-        );
+        if (!String.IsNullOrWhiteSpace(userTriggeringMessage))
+        {
+            await store.Insert(
+                new AiChatMessage(
+                    Guid.NewGuid().ToString(),
+                    userTriggeringMessage,
+                    now,
+                    ChatMessageDirection.User
+                ),
+                AppJsonContext.Default.AiChatMessage,
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
+
+        if (response.Text is { } text && !String.IsNullOrWhiteSpace(text))
+        {
+            var usage = response.Usage;
+            await store.Insert(
+                new AiChatMessage(
+                    Guid.NewGuid().ToString(),
+                    text,
+                    // Bump one tick so this row sorts strictly after the user message
+                    // even when the system clock returns identical timestamps.
+                    now.AddTicks(1),
+                    ChatMessageDirection.AI,
+                    usage?.InputTokenCount,
+                    usage?.OutputTokenCount,
+                    usage?.TotalTokenCount
+                ),
+                AppJsonContext.Default.AiChatMessage,
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
     }
 
     public Task Clear(DateTimeOffset? beforeDate = null)
@@ -33,7 +55,7 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
         return query.ExecuteDelete();
     }
 
-    public Task<IReadOnlyList<AiChatMessage>> Query(
+    public async Task<IReadOnlyList<AiChatMessage>> Query(
         string? messageContains = null,
         DateTimeOffset? fromDate = null,
         DateTimeOffset? toDate = null,
@@ -41,8 +63,12 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
         CancellationToken cancellationToken = default
     )
     {
-        var query = store.Query(AppJsonContext.Default.AiChatMessage)
-            .OrderBy(x => x.Timestamp);
+        // When a limit is supplied, return the LATEST N matching messages
+        // (then reverse to chronological order for display). Without it,
+        // return everything ordered chronologically.
+        var query = limit.HasValue
+            ? store.Query(AppJsonContext.Default.AiChatMessage).OrderByDescending(x => x.Timestamp)
+            : store.Query(AppJsonContext.Default.AiChatMessage).OrderBy(x => x.Timestamp);
 
         if (!String.IsNullOrWhiteSpace(messageContains))
             query = query.Where(x => x.Message.Contains(messageContains));
@@ -54,8 +80,12 @@ public class DocumentDbMessageStore(IDocumentStore store) : IMessageStore
             query = query.Where(x => x.Timestamp <= toDate.Value);
 
         if (limit.HasValue)
+        {
             query = query.Paginate(0, limit.Value);
+            var page = await query.ToList(cancellationToken).ConfigureAwait(false);
+            return page.AsEnumerable().Reverse().ToList();
+        }
 
-        return query.ToList(cancellationToken);
+        return await query.ToList(cancellationToken).ConfigureAwait(false);
     }
 }

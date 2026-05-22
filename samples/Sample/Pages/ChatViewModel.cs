@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Shiny;
@@ -49,11 +50,19 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
     {
         if (response.Response.Text is { } text)
         {
+            var usage = response.Response.Usage;
+            var bubble = AppendTokenFooter(
+                text,
+                usage?.InputTokenCount,
+                usage?.OutputTokenCount,
+                usage?.TotalTokenCount
+            );
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 this.Messages.Add(new ChatMessage
                 {
-                    Text = text,
+                    Text = bubble,
                     IsFromMe = false,
                     SenderId = "copilot",
                     Timestamp = DateTimeOffset.Now,
@@ -136,12 +145,39 @@ public partial class ChatViewModel(IAiConversationService aiService, IDialogs di
         }
     }
 
-    static ChatMessage ToChatMessage(AiChatMessage msg) => new()
+    static ChatMessage ToChatMessage(AiChatMessage msg)
     {
-        Text = msg.Message,
-        IsFromMe = msg.Direction == ChatMessageDirection.User,
-        SenderId = msg.Direction == ChatMessageDirection.User ? "me" : "copilot",
-        Timestamp = msg.Timestamp,
-        DateSent = msg.Timestamp
-    };
+        var text = msg.Direction == ChatMessageDirection.AI
+            ? AppendTokenFooter(msg.Message, msg.InputTokens, msg.OutputTokens, msg.TotalTokens)
+            : msg.Message;
+
+        return new ChatMessage
+        {
+            Text = text,
+            IsFromMe = msg.Direction == ChatMessageDirection.User,
+            SenderId = msg.Direction == ChatMessageDirection.User ? "me" : "copilot",
+            Timestamp = msg.Timestamp,
+            DateSent = msg.Timestamp
+        };
+    }
+
+    static string AppendTokenFooter(string body, long? input, long? output, long? total)
+    {
+        var footer = FormatTokenFooter(input, output, total);
+        return footer is null ? body : body + "\n\n— " + footer;
+    }
+
+    internal static string? FormatTokenFooter(long? input, long? output, long? total)
+    {
+        if (total is null && input is null && output is null)
+            return null;
+
+        var ci = CultureInfo.InvariantCulture;
+        var totalStr = (total ?? ((input ?? 0) + (output ?? 0))).ToString("N0", ci);
+
+        if (input.HasValue && output.HasValue)
+            return $"{totalStr} tokens ({input.Value.ToString("N0", ci)} in · {output.Value.ToString("N0", ci)} out)";
+
+        return $"{totalStr} tokens";
+    }
 }

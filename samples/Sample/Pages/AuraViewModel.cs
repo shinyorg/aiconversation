@@ -6,12 +6,16 @@ using Shiny.Speech;
 
 namespace Sample.Pages;
 
-public partial class AuraViewModel(IAiConversationService aiService, IDialogs dialogs)
-    : ObservableObject, IPageLifecycleAware
+public partial class AuraViewModel(
+    IAiConversationService aiService,
+    ITextToSpeechService tts,
+    IDialogs dialogs
+) : ObservableObject, IPageLifecycleAware
 {
     CancellationTokenSource? listenCts;
 
     public string StatusText => aiService.Status.ToString();
+    public AiState CurrentState => aiService.Status;
 
     [ObservableProperty]
     string? lastResponseText;
@@ -21,6 +25,14 @@ public partial class AuraViewModel(IAiConversationService aiService, IDialogs di
 
     [ObservableProperty]
     string? livePartialText;
+
+    /// <summary>0..1 audio output level fed from the TTS service while it's speaking.</summary>
+    [ObservableProperty]
+    double audioLevel;
+
+    /// <summary>Pretty-formatted token burn for the most recent AI response, or null when none yet.</summary>
+    [ObservableProperty]
+    string? lastTokenBurn;
 
     [RelayCommand]
     void DismissResponse() => this.IsResponseVisible = false;
@@ -58,7 +70,9 @@ public partial class AuraViewModel(IAiConversationService aiService, IDialogs di
         aiService.AiResponded += this.OnAiResponded;
         aiService.SpeechResultReceived += this.OnSpeechResult;
         aiService.ErrorOccurred += this.OnErrorOccurred;
+        tts.AudioLevelChanged += this.OnAudioLevelChanged;
         OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(CurrentState));
     }
 
     public void OnDisappearing()
@@ -67,6 +81,7 @@ public partial class AuraViewModel(IAiConversationService aiService, IDialogs di
         aiService.AiResponded -= this.OnAiResponded;
         aiService.SpeechResultReceived -= this.OnSpeechResult;
         aiService.ErrorOccurred -= this.OnErrorOccurred;
+        tts.AudioLevelChanged -= this.OnAudioLevelChanged;
     }
 
     async void OnErrorOccurred(Exception ex)
@@ -82,8 +97,19 @@ public partial class AuraViewModel(IAiConversationService aiService, IDialogs di
 
     void OnAiResponded(AiResponse response)
     {
+        var usage = response.Response.Usage;
+        var burn = ChatViewModel.FormatTokenFooter(
+            usage?.InputTokenCount,
+            usage?.OutputTokenCount,
+            usage?.TotalTokenCount
+        );
+
         if (response.WasReadAloud)
+        {
+            if (burn is not null)
+                MainThread.BeginInvokeOnMainThread(() => this.LastTokenBurn = burn);
             return;
+        }
 
         if (response.Response.Text is { } text)
         {
@@ -91,12 +117,25 @@ public partial class AuraViewModel(IAiConversationService aiService, IDialogs di
             {
                 this.LastResponseText = text;
                 this.IsResponseVisible = true;
+                if (burn is not null)
+                    this.LastTokenBurn = burn;
             });
         }
     }
 
     void OnStatusChanged(AiState state)
     {
-        MainThread.BeginInvokeOnMainThread(() => OnPropertyChanged(nameof(StatusText)));
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(CurrentState));
+            if (state != AiState.Responding)
+                this.AudioLevel = 0;
+        });
+    }
+
+    void OnAudioLevelChanged(object? sender, double level)
+    {
+        MainThread.BeginInvokeOnMainThread(() => this.AudioLevel = level);
     }
 }
