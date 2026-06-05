@@ -34,6 +34,7 @@ public class AiConversationService(
     public event Action<AiState>? StatusChanged;
     public event Action<AiResponse>? AiResponded;
     public event Action<SpeechRecognitionResult>? SpeechResultReceived;
+    public event Action<ConversationSpeech>? SpeechOccurred;
     public event Action<Exception>? ErrorOccurred;
     public bool IsWakeWordEnabled => this.sessionMode == SessionMode.WakeWord;
     public string? WakeWord { get; private set; }
@@ -240,7 +241,7 @@ public class AiConversationService(
         var expectsResponse = TextEndsWithQuestion(response.Text);
         this.lastResponseExpectedReply = expectsResponse;
         logger?.LogDebug("ExpectsResponse: {ExpectsResponse}", expectsResponse);
-        this.AiResponded?.Invoke(new AiResponse(response, wasReadAloud, expectsResponse));
+        this.RaiseAiResponded(new AiResponse(response, wasReadAloud, expectsResponse));
 
         if (messageStore != null)
         {
@@ -289,6 +290,7 @@ public class AiConversationService(
             // Suppress recognition while TTS is speaking, plus a short settle window after, so the
             // recognizer's own transcription of the AI's voice doesn't become the next "utterance".
             Interlocked.Exchange(ref this.suppressResultsUntilTicks, DateTimeOffset.MaxValue.UtcTicks);
+            this.RaiseSpeech(ConversationSpeechSource.Spoken, text);
             try
             {
                 await textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, cancellationToken).ConfigureAwait(false);
@@ -308,6 +310,7 @@ public class AiConversationService(
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var linkedToken = linkedCts.Token;
 
+        this.RaiseSpeech(ConversationSpeechSource.Spoken, text);
         var speakTask = textToSpeech.SpeakAsync(text, this.TextToSpeechOptions, linkedToken);
         var listenTask = this.ListenDuringSpeech(quietWords, linkedToken);
 
@@ -377,6 +380,7 @@ public class AiConversationService(
             if (quietOnlyPattern.IsMatch(trimmed))
             {
                 logger?.LogDebug("Quiet word matched: {Word}", trimmed);
+                this.RaiseSpeech(ConversationSpeechSource.Heard, trimmed);
                 return new InterruptionResult(InterruptionKind.QuietWord, trimmed, result.Confidence);
             }
 
@@ -387,8 +391,7 @@ public class AiConversationService(
             // then suppress likely TTS echo with the confidence floor. Confidence == 0 on a final is
             // treated as no-info rather than "very low" and is allowed through.
             if (textToSpeech.IsSpeaking
-                && result.Confidence is { } conf
-                && conf > 0
+                && result.Confidence is { } conf and > 0
                 && conf < this.InterruptionMinConfidence)
             {
                 logger?.LogDebug(
@@ -400,6 +403,7 @@ public class AiConversationService(
             }
 
             logger?.LogDebug("New utterance detected: {Utterance}", trimmed);
+            this.RaiseSpeech(ConversationSpeechSource.Heard, trimmed);
             return new InterruptionResult(InterruptionKind.NewUtterance, trimmed, result.Confidence);
         }
 
@@ -447,7 +451,12 @@ public class AiConversationService(
     {
         logger?.LogDebug("Status changing: {OldStatus} -> {NewStatus}", this.Status, status);
         this.Status = status;
-        this.StatusChanged?.Invoke(status);
+        var handler = this.StatusChanged;
+        if (handler == null)
+            return;
+
+        try { handler.Invoke(status); }
+        catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "StatusChanged subscriber threw"); }
     }
 
     enum SessionMode { None, WakeWord, PushToTalk }
@@ -567,7 +576,7 @@ public class AiConversationService(
 
     void OnSpeechResult(object? sender, SpeechRecognitionResult result)
     {
-        this.SpeechResultReceived?.Invoke(result);
+        this.RaiseSpeechResult(result);
 
         var suppressUntil = Interlocked.Read(ref this.suppressResultsUntilTicks);
         if (suppressUntil > 0 && DateTimeOffset.UtcNow.UtcTicks < suppressUntil)
@@ -603,6 +612,36 @@ public class AiConversationService(
         catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "ErrorOccurred subscriber threw"); }
     }
 
+    void RaiseSpeech(ConversationSpeechSource source, string text)
+    {
+        var handler = this.SpeechOccurred;
+        if (handler == null)
+            return;
+
+        try { handler.Invoke(new ConversationSpeech(source, text)); }
+        catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "SpeechOccurred subscriber threw"); }
+    }
+
+    void RaiseAiResponded(AiResponse response)
+    {
+        var handler = this.AiResponded;
+        if (handler == null)
+            return;
+
+        try { handler.Invoke(response); }
+        catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "AiResponded subscriber threw"); }
+    }
+
+    void RaiseSpeechResult(SpeechRecognitionResult result)
+    {
+        var handler = this.SpeechResultReceived;
+        if (handler == null)
+            return;
+
+        try { handler.Invoke(result); }
+        catch (Exception subscriberEx) { logger?.LogError(subscriberEx, "SpeechResultReceived subscriber threw"); }
+    }
+
     async Task SafePlay(AiAction action)
     {
         try { await soundProvider.Play(action).ConfigureAwait(false); }
@@ -636,7 +675,10 @@ public class AiConversationService(
             {
                 var text = result.Text?.Trim();
                 if (!String.IsNullOrWhiteSpace(text))
+                {
+                    this.RaiseSpeech(ConversationSpeechSource.Heard, text);
                     return text;
+                }
             }
         }
 

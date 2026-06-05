@@ -53,4 +53,13 @@
         <ProjectReference Include="..\..\src\Shiny.AiConversation.Maui.GithubCopilot\Shiny.AiConversation.Maui.GithubCopilot.csproj"/>
     </ItemGroup>
 
+    <!--
+    CarPlay entitlement — Apple-granted per category, gated behind a request to Apple.
+    Driving Task is the closest fit for an AI voice assistant. Uncomment once Apple has
+    approved the entitlement against your bundle id; without it the scene won't connect.
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+        <CustomEntitlements Include="com.apple.developer.carplay-driving-task" Type="Boolean" Value="true" />
+    </ItemGroup>
+    -->
+
 </Project>

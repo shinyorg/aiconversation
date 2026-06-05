@@ -96,6 +96,22 @@
                    CharacterSpacing="2"
                    TextColor="#FF8855"
                    HorizontalOptions="Center" />
+            <Label Text="{Binding HeardText, StringFormat='YOU: {0}'}"
+                   IsVisible="{Binding HasHeardText}"
+                   FontSize="12"
+                   TextColor="#FFB080"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap"
+                   MaxLines="3" />
+            <Label Text="{Binding SpokenText, StringFormat='K.I.T.T.: {0}'}"
+                   IsVisible="{Binding HasSpokenText}"
+                   FontSize="12"
+                   TextColor="#FFD0B0"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap"
+                   MaxLines="3" />
         </VerticalStackLayout>
 
     </Grid>

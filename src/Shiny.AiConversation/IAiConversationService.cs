@@ -26,6 +26,13 @@ public interface IAiConversationService
     event Action<SpeechRecognitionResult>? SpeechResultReceived;
 
     /// <summary>
+    /// Raised for both sides of the conversation: a final user utterance captured by speech-to-text
+    /// (<see cref="ConversationSpeechSource.Heard"/>) and the AI response text right before it is spoken
+    /// aloud by text-to-speech (<see cref="ConversationSpeechSource.Spoken"/>).
+    /// </summary>
+    event Action<ConversationSpeech>? SpeechOccurred;
+
+    /// <summary>
     /// Raised when an unrecoverable error stops the service from acting (the active ListenAndTalk or
     /// wake-word loop is aborted, or the underlying speech driver reports a fatal error). Normal
     /// cancellation does not raise this event.
@@ -171,3 +178,19 @@ public record AiResponse(
     bool WasReadAloud,
     bool ExpectsResponse
 );
+
+/// <summary>
+/// Identifies which side of the conversation a <see cref="ConversationSpeech"/> event represents.
+/// </summary>
+public enum ConversationSpeechSource
+{
+    /// <summary>The user's final utterance as recognized by speech-to-text.</summary>
+    Heard,
+    /// <summary>The AI's response text about to be spoken aloud by text-to-speech.</summary>
+    Spoken
+}
+
+/// <summary>
+/// A unified payload for conversational speech — either heard from the user (STT) or spoken by the AI (TTS).
+/// </summary>
+public record ConversationSpeech(ConversationSpeechSource Source, string Text);
