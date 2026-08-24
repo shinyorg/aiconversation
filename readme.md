@@ -1,4 +1,6 @@
-# Shiny.AiConversation
+# THIS LIBRARY HAS BECOME PART OF [https://github.com/shinyorg/speech]
+
+## Shiny.AiConversation
 
 A centralized AI service library for .NET MAUI apps that orchestrates chat, speech recognition, wake word detection, text-to-speech, and persistent message history into a single `IAiConversationService` interface.
 
